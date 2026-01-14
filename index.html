@@ -175,7 +175,7 @@
     const vw = window.innerWidth;
     const vh = window.innerHeight;
 
-    const scale = Math.min(vw / baseW, vh / baseH);
+    const scale = Math.min(1, vw / baseW, vh / baseH);
 
     stage.style.transform = `scale(${scale})`;
 
