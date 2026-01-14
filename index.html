@@ -370,6 +370,7 @@
 
     if (nx === food.x && ny === food.y){
       score += 1;
+        playSfx(eatSfx);
       setScoreUI(score);
 
       if (score % SPEEDUP_EVERY === 0){
@@ -379,11 +380,13 @@
       if (score === UNLOCK_SCORE){
         unlockUI();
         unlockFlashT = 650;
+          playSfx(unlockSfx);
       } else if (score > UNLOCK_SCORE){
         unlockUI();
       }
 
       if (score === DISCOUNT_SCORE){
+          playSfx(unlockSfx);
         // later
       }
 
@@ -513,6 +516,7 @@
 
   window.addEventListener("keydown", (e) => {
     const k = e.key.toLowerCase();
+        armAudioOnce();
 
     if (blockKeys.has(k)){
       e.preventDefault();
@@ -538,6 +542,8 @@
   // touch swipe
   let sx=0, sy=0, touching=false;
   canvas.addEventListener("touchstart", (e) => {
+   armAudioOnce();
+    
     if (!e.touches || e.touches.length !== 1) return;
     touching = true;
     sx = e.touches[0].clientX;
