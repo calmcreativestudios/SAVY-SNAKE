@@ -18,7 +18,7 @@
       --ui:#000000;
 
       /* Layout sizing (the “design canvas” size) */
-      --gameSize: 900px;    /* change to 800px if you want later */
+      --gameSize: 900px;
       --gap: 48px;
       --sideMin: 220px;
     }
@@ -30,20 +30,17 @@
       background:var(--bg);
       color:var(--ui);
       font-family:"Source Sans Pro",system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      overflow:hidden; /* critical for iframe embedding + scaling */
+      overflow:hidden;
     }
 
-    /* This is the scaled stage that makes Readymag editor/preview consistent */
     #stage{
       position:fixed;
       left:0;
       top:0;
       transform-origin: 0 0;
       will-change: transform;
-      /* width/height are set by JS based on actual content size */
     }
 
-    /* MODULE */
     .savy-snake{
       display:flex;
       align-items:flex-start;
@@ -51,7 +48,6 @@
       background:transparent;
     }
 
-    /* GAME BOX */
     .gameBox{
       width:var(--gameSize);
       height:var(--gameSize);
@@ -67,11 +63,10 @@
       height:100%;
       display:block;
       background:transparent;
-      image-rendering: pixelated; /* snake pixels */
-      touch-action:none; /* prevent page scroll on mobile while swiping */
+      image-rendering: pixelated; /* keep snake pixel style */
+      touch-action:none;
     }
 
-    /* RIGHT UI */
     .sideUI{
       min-width:var(--sideMin);
       padding-top:8px;
@@ -103,7 +98,6 @@
       pointer-events:auto;
     }
 
-    /* subtle flash on unlock */
     .enterShop.flash{ animation: flash 0.65s linear 1; }
     @keyframes flash{
       0%{opacity:0.15;}
@@ -118,7 +112,6 @@
 </head>
 <body>
 
-  <!-- Stage wrapper (scaled to fit any iframe size) -->
   <div id="stage">
     <div class="savy-snake" id="savySnakeModule">
       <div class="gameBox" aria-label="Savy Snake game">
@@ -135,57 +128,45 @@
 <script>
 (() => {
   /***********************
-   * SETTINGS YOU EDIT
+   * SETTINGS
    ***********************/
   const UNLOCK_SCORE = 22;
   const DISCOUNT_SCORE = 100; // later
-  const SHOP_URL = ""; // set to your shop URL later
+  const SHOP_URL = ""; // optional redirect later
 
-  // Game feel (faster)
   const GRID = 28;
   const START_MS = 80;
   const MIN_MS = 52;
   const SPEEDUP_EVERY = 4;
   const SPEEDUP_MS = 4;
 
-  // Food (logo) sizing (bigger than tile so it’s visible)
   const FOOD_SCALE_TO_CELL = 1.6;
-
-  // SVG file in repo root (must exist): savy-logo.svg
   const LOGO_SRC = "./savy-logo.svg";
 
   /***********************
-   * STAGE AUTO-FIT (KEY FIX FOR READYMAG)
-   * Makes editor and preview/published match by scaling to viewport.
+   * STAGE AUTO-FIT
    ***********************/
   function fitStage(){
     const stage = document.getElementById("stage");
     const module = document.getElementById("savySnakeModule");
     if (!stage || !module) return;
 
-    // Measure actual designed size
     const baseW = module.offsetWidth;
     const baseH = module.offsetHeight;
 
-    // Lock stage box to that size
     stage.style.width = baseW + "px";
     stage.style.height = baseH + "px";
 
-    // Fit into iframe/viewport
     const vw = window.innerWidth;
     const vh = window.innerHeight;
 
-    const scale = Math.min(1, vw / baseW, vh / baseH);
+    const scale = Math.min(vw / baseW, vh / baseH);
 
     stage.style.transform = `scale(${scale})`;
 
-    // Center
-    const left = Math.floor((vw - baseW * scale) / 2);
-    const top  = Math.floor((vh - baseH * scale) / 2);
-    stage.style.left = left + "px";
-    stage.style.top  = top + "px";
+    stage.style.left = Math.floor((vw - baseW * scale) / 2) + "px";
+    stage.style.top  = Math.floor((vh - baseH * scale) / 2) + "px";
   }
-
   window.addEventListener("resize", fitStage);
 
   /***********************
@@ -194,64 +175,42 @@
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d", { alpha:true });
 
+  // CRITICAL: keep snake crisp after canvas resizes
   function setCrisp(){
-    // crisp snake blocks
     ctx.imageSmoothingEnabled = false;
     ctx.webkitImageSmoothingEnabled = false;
     ctx.mozImageSmoothingEnabled = false;
   }
 
-  // Make internal canvas resolution match its displayed size (keeps pixels crisp)
-function resizeCanvasToBox(){
-  const boxEl = canvas.parentElement;
+  // Supersampled resize for better sharpness in Readymag scaling
+  function resizeCanvasToBox(){
+    const boxEl = canvas.parentElement;
 
-  let cssW = boxEl.clientWidth;
-  let cssH = boxEl.clientHeight;
+    let cssW = boxEl.clientWidth;
+    let cssH = boxEl.clientHeight;
 
-  // Readymag fallback when clientWidth = 0
-  if (!cssW || !cssH){
-    const r = boxEl.getBoundingClientRect();
-    cssW = Math.round(r.width);
-    cssH = Math.round(r.height);
-  }
+    // fallback when Readymag/layout reports 0
+    if (!cssW || !cssH){
+      const r = boxEl.getBoundingClientRect();
+      cssW = Math.round(r.width);
+      cssH = Math.round(r.height);
+    }
 
-  if (cssW < 2 || cssH < 2) return;
+    if (cssW < 2 || cssH < 2) return;
 
-  const dpr = window.devicePixelRatio || 1;
-  const SUPERSAMPLE = 2;     // sharpness boost
-  const MAX_PX = 5000;       // safety cap
+    const dpr = window.devicePixelRatio || 1;
+    const SUPERSAMPLE = 2;
+    const MAX_PX = 5000;
 
-  const px = Math.min(MAX_PX, Math.floor(cssW * dpr * SUPERSAMPLE));
-  const py = Math.min(MAX_PX, Math.floor(cssH * dpr * SUPERSAMPLE));
+    const px = Math.min(MAX_PX, Math.floor(cssW * dpr * SUPERSAMPLE));
+    const py = Math.min(MAX_PX, Math.floor(cssH * dpr * SUPERSAMPLE));
 
-  if (px < 2 || py < 2) return;
+    if (px < 2 || py < 2) return;
 
-  if (canvas.width !== px || canvas.height !== py){
-    canvas.width = px;
-    canvas.height = py;
-    setCrisp();
-  }
-}
-
-  // Still nothing? Don't touch the canvas yet.
-  if (cssW < 2 || cssH < 2) return;
-
-  const dpr = (window.devicePixelRatio || 1);
-  const SUPERSAMPLE = 2; // 2 is a good balance. If heavy, drop to 1.
-  const MAX_PX = 4500;   // safety cap
-
-  const px = Math.min(MAX_PX, Math.floor(cssW * dpr * SUPERSAMPLE));
-  const py = Math.min(MAX_PX, Math.floor(cssH * dpr * SUPERSAMPLE));
-
-  // Never allow zero
-  if (px < 2 || py < 2) return;
-
-  if (canvas.width !== px || canvas.height !== py){
-    canvas.width = px;
-    canvas.height = py;
-    setCrisp();
-  }
-}
+    if (canvas.width !== px || canvas.height !== py){
+      canvas.width = px;
+      canvas.height = py;
+      setCrisp();
     }
   }
   window.addEventListener("resize", resizeCanvasToBox);
@@ -282,7 +241,7 @@ function resizeCanvasToBox(){
   });
 
   /***********************
-   * FOOD LOGO IMAGE
+   * FOOD LOGO
    ***********************/
   const foodImg = new Image();
   foodImg.decoding = "async";
@@ -316,7 +275,7 @@ function resizeCanvasToBox(){
     dead = false;
     unlockFlashT = 0;
 
-    // timing reset to avoid a “burst” after restart
+    // reset timing for clean restart
     lastTime = 0;
     acc = 0;
 
@@ -375,7 +334,7 @@ function resizeCanvasToBox(){
       }
 
       if (score === DISCOUNT_SCORE){
-        // placeholder hook for discount later
+        // later
       }
 
       food = spawnFood();
@@ -394,16 +353,14 @@ function resizeCanvasToBox(){
 
     const cs = cellSize();
 
-    // snake (white blocks)
+    // snake
     ctx.fillStyle = "#fff";
     for (let i=0; i<snake.length; i++){
       const s = snake[i];
-      const x = s.x * cs;
-      const y = s.y * cs;
-      ctx.fillRect(x + 1, y + 1, cs - 2, cs - 2);
+      ctx.fillRect(s.x*cs + 1, s.y*cs + 1, cs - 2, cs - 2);
     }
 
-    // food (smooth logo)
+    // food logo (smooth)
     const fx = food.x * cs;
     const fy = food.y * cs;
 
@@ -412,28 +369,27 @@ function resizeCanvasToBox(){
 
       const iw = foodImg.naturalWidth;
       const ih = foodImg.naturalHeight;
-      const scale = Math.min(target / iw, target / ih);
+      const sc = Math.min(target / iw, target / ih);
 
-      const dw = iw * scale;
-      const dh = ih * scale;
+      const dw = iw * sc;
+      const dh = ih * sc;
 
       const dx = fx + (cs - dw)/2;
       const dy = fy + (cs - dh)/2;
 
       ctx.save();
-      ctx.imageSmoothingEnabled = true; // keep logo smooth
+      ctx.imageSmoothingEnabled = true;
       ctx.drawImage(foodImg, dx, dy, dw, dh);
       ctx.restore();
 
       setCrisp();
     } else {
-      // fallback square
       ctx.fillStyle = "#fff";
       ctx.fillRect(fx + cs*0.35, fy + cs*0.35, cs*0.3, cs*0.3);
       ctx.fillStyle = "#fff";
     }
 
-    // subtle border pulse on unlock
+    // unlock pulse
     if (unlockFlashT > 0){
       ctx.save();
       ctx.globalAlpha = 0.22;
@@ -443,7 +399,7 @@ function resizeCanvasToBox(){
       ctx.restore();
     }
 
-    // death state — UPDATED COPY + SPACE RESTART
+    // game over text (space restart)
     if (dead){
       ctx.save();
       ctx.globalAlpha = 0.35;
@@ -472,10 +428,8 @@ function resizeCanvasToBox(){
     const dt = t - lastTime;
     lastTime = t;
 
-    // AUTOPLAY: game runs whenever not dead
-    if (!dead){
-      running = true;
-    }
+    // autoplay whenever not dead
+    if (!dead) running = true;
 
     if (running && !dead){
       acc += dt;
@@ -512,7 +466,7 @@ function resizeCanvasToBox(){
       e.stopPropagation();
     }
 
-    // SPACE = restart when dead
+    // space = restart when dead
     if (k === " " && dead){
       reset();
       dead = false;
@@ -555,7 +509,7 @@ function resizeCanvasToBox(){
     const ady = Math.abs(dy);
     const threshold = 14;
 
-    // tap = restart when dead
+    // tap = restart if dead
     if (adx < threshold && ady < threshold){
       if (dead){
         reset();
@@ -584,24 +538,23 @@ function resizeCanvasToBox(){
       }
     } catch (_) {}
 
-fitStage();
-resizeCanvasToBox();
-
-requestAnimationFrame(() => {
-  fitStage();
-  resizeCanvasToBox();
-  requestAnimationFrame(() => {
     fitStage();
     resizeCanvasToBox();
-  });
-});
+
+    // double frame helps Readymag layout settle (prevents 0-size)
+    requestAnimationFrame(() => {
+      fitStage();
+      resizeCanvasToBox();
+      requestAnimationFrame(() => {
+        fitStage();
+        resizeCanvasToBox();
+      });
+    });
 
     reset();
-
-    // AUTOPLAY ON LOAD
-    running = true;
-
+    running = true; // autoplay on load
     setCrisp();
+
     requestAnimationFrame(loop);
   }
 
