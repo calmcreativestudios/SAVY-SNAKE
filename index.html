@@ -204,7 +204,7 @@
   // Make internal canvas resolution match its displayed size (keeps pixels crisp)
   function resizeCanvasToBox(){
     const box = canvas.parentElement.getBoundingClientRect();
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dpr = Math.min(4, window.devicePixelRatio || 1);
 
     const px = Math.floor(box.width * dpr);
     const py = Math.floor(box.height * dpr);
