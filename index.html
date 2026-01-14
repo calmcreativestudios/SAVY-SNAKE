@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Savy Snake</title>
+  <title>Savy Snake Module</title>
 
   <!-- Source Sans Pro -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,41 +12,51 @@
 
   <style>
     :root{
-      --gameSize: 900px;   /* change to 800px later if needed */
+      --bg:#ffffff;
+      --ink:#000000;
+      --game:#000000;
+      --ui:#000000;
+
+      /* Layout sizing (the “design canvas” size) */
+      --gameSize: 900px;    /* change to 800px if you want later */
       --gap: 48px;
       --sideMin: 220px;
     }
 
     html,body{
-      margin:0;
-      padding:0;
+      margin:0; padding:0;
       width:100%;
       height:100%;
-      background:#fff;
-      font-family:"Source Sans Pro", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      overflow:hidden;
+      background:var(--bg);
+      color:var(--ui);
+      font-family:"Source Sans Pro",system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      overflow:hidden; /* critical for iframe embedding + scaling */
     }
 
-    /* Stage = fixed design canvas that scales to iframe size */
+    /* This is the scaled stage that makes Readymag editor/preview consistent */
     #stage{
       position:fixed;
       left:0;
       top:0;
-      transform-origin:0 0;
-      will-change:transform;
+      transform-origin: 0 0;
+      will-change: transform;
+      /* width/height are set by JS based on actual content size */
     }
 
+    /* MODULE */
     .savy-snake{
       display:flex;
       align-items:flex-start;
       gap:var(--gap);
+      background:transparent;
     }
 
+    /* GAME BOX */
     .gameBox{
       width:var(--gameSize);
       height:var(--gameSize);
-      background:#000;
-      border:6px solid #000;
+      background:var(--game);
+      border:6px solid var(--ink);
       box-sizing:border-box;
       display:grid;
       place-items:center;
@@ -56,17 +66,18 @@
       width:100%;
       height:100%;
       display:block;
-      image-rendering:pixelated;
+      background:transparent;
+      image-rendering: pixelated; /* snake pixels */
     }
 
+    /* RIGHT UI */
     .sideUI{
       min-width:var(--sideMin);
       padding-top:8px;
       user-select:none;
     }
 
-    .score,
-    .enterShop{
+    .score{
       font-size:16px;
       letter-spacing:0.5px;
       text-transform:uppercase;
@@ -75,10 +86,15 @@
 
     .enterShop{
       margin-top:44px;
+      font-size:16px;
+      letter-spacing:0.5px;
+      text-transform:uppercase;
+      font-weight:400;
       opacity:0;
       pointer-events:none;
       transition:opacity 180ms linear;
       cursor:pointer;
+      display:inline-block;
     }
 
     .enterShop.unlocked{
@@ -86,221 +102,443 @@
       pointer-events:auto;
     }
 
-    .enterShop.flash{
-      animation:flash 0.65s linear 1;
-    }
-
+    /* subtle flash on unlock */
+    .enterShop.flash{ animation: flash 0.65s linear 1; }
     @keyframes flash{
-      0%{opacity:.15;}
+      0%{opacity:0.15;}
       12%{opacity:1;}
-      24%{opacity:.15;}
+      24%{opacity:0.15;}
       36%{opacity:1;}
-      48%{opacity:.15;}
+      48%{opacity:0.15;}
       60%{opacity:1;}
       100%{opacity:1;}
     }
   </style>
 </head>
-
 <body>
 
-<div id="stage">
-  <div class="savy-snake" id="module">
-    <div class="gameBox">
-      <canvas id="game"></canvas>
-    </div>
+  <!-- Stage wrapper (scaled to fit any iframe size) -->
+  <div id="stage">
+    <div class="savy-snake" id="savySnakeModule">
+      <div class="gameBox" aria-label="Savy Snake game">
+        <canvas id="game" width="900" height="900"></canvas>
+      </div>
 
-    <div class="sideUI">
-      <div class="score" id="scoreText">SCORE: 00</div>
-      <div class="enterShop" id="enterShop">ENTER SHOP</div>
+      <div class="sideUI">
+        <div class="score" id="scoreText">SCORE: 00</div>
+        <div class="enterShop" id="enterShop">ENTER SHOP</div>
+      </div>
     </div>
   </div>
-</div>
 
 <script>
 (() => {
-  /* SETTINGS */
+  /***********************
+   * SETTINGS YOU EDIT
+   ***********************/
   const UNLOCK_SCORE = 22;
+  const DISCOUNT_SCORE = 100; // later
+  const SHOP_URL = ""; // set to your shop URL later
+
+  // Game feel (faster)
   const GRID = 28;
   const START_MS = 80;
   const MIN_MS = 52;
   const SPEEDUP_EVERY = 4;
   const SPEEDUP_MS = 4;
-  const FOOD_SCALE = 1.6;
+
+  // Food (logo) sizing (bigger than tile so it’s visible)
+  const FOOD_SCALE_TO_CELL = 1.6;
+
+  // SVG file in repo root (must exist): savy-logo.svg
   const LOGO_SRC = "./savy-logo.svg";
 
-  /* STAGE SCALING (fixes Readymag preview issues) */
+  /***********************
+   * STAGE AUTO-FIT (KEY FIX FOR READYMAG)
+   * Makes editor and preview/published match by scaling to viewport.
+   ***********************/
   function fitStage(){
     const stage = document.getElementById("stage");
-    const mod = document.getElementById("module");
-    const w = mod.offsetWidth;
-    const h = mod.offsetHeight;
+    const module = document.getElementById("savySnakeModule");
+    if (!stage || !module) return;
 
-    stage.style.width = w + "px";
-    stage.style.height = h + "px";
+    // Measure actual designed size
+    const baseW = module.offsetWidth;
+    const baseH = module.offsetHeight;
 
-    const scale = Math.min(window.innerWidth / w, window.innerHeight / h);
+    // Lock stage box to that size
+    stage.style.width = baseW + "px";
+    stage.style.height = baseH + "px";
+
+    // Fit into iframe/viewport
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    const scale = Math.min(vw / baseW, vh / baseH);
+
     stage.style.transform = `scale(${scale})`;
-    stage.style.left = ((window.innerWidth - w * scale) / 2) + "px";
-    stage.style.top  = ((window.innerHeight - h * scale) / 2) + "px";
+
+    // Center
+    const left = Math.floor((vw - baseW * scale) / 2);
+    const top  = Math.floor((vh - baseH * scale) / 2);
+    stage.style.left = left + "px";
+    stage.style.top  = top + "px";
   }
 
   window.addEventListener("resize", fitStage);
 
-  /* CANVAS */
+  /***********************
+   * CANVAS SETUP
+   ***********************/
   const canvas = document.getElementById("game");
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext("2d", { alpha:true });
 
-  function resizeCanvas(){
-    const box = canvas.parentElement.getBoundingClientRect();
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    canvas.width = Math.floor(box.width * dpr);
-    canvas.height = Math.floor(box.height * dpr);
+  function setCrisp(){
+    // crisp snake blocks
     ctx.imageSmoothingEnabled = false;
+    ctx.webkitImageSmoothingEnabled = false;
+    ctx.mozImageSmoothingEnabled = false;
   }
 
-  window.addEventListener("resize", resizeCanvas);
+  // Make internal canvas resolution match its displayed size (keeps pixels crisp)
+  function resizeCanvasToBox(){
+    const box = canvas.parentElement.getBoundingClientRect();
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
 
-  /* UI */
+    const px = Math.floor(box.width * dpr);
+    const py = Math.floor(box.height * dpr);
+
+    if (canvas.width !== px || canvas.height !== py){
+      canvas.width = px;
+      canvas.height = py;
+      setCrisp();
+    }
+  }
+  window.addEventListener("resize", resizeCanvasToBox);
+
+  /***********************
+   * UI
+   ***********************/
   const scoreText = document.getElementById("scoreText");
   const enterShop = document.getElementById("enterShop");
 
-  function setScore(n){
-    scoreText.textContent = "SCORE: " + String(n).padStart(2,"0");
+  function setScoreUI(n){
+    const s = String(n).padStart(2, "0");
+    scoreText.textContent = `SCORE: ${s}`;
   }
 
-  function unlock(){
+  function unlockUI(){
     if (!enterShop.classList.contains("unlocked")){
       enterShop.classList.add("unlocked");
+      enterShop.classList.remove("flash");
+      void enterShop.offsetWidth;
       enterShop.classList.add("flash");
     }
   }
 
-  /* GAME */
+  enterShop.addEventListener("click", () => {
+    if (!enterShop.classList.contains("unlocked")) return;
+    if (SHOP_URL) window.location.href = SHOP_URL;
+  });
+
+  /***********************
+   * FOOD LOGO IMAGE
+   ***********************/
   const foodImg = new Image();
+  foodImg.decoding = "async";
   foodImg.src = LOGO_SRC;
 
-  let snake, dir, nextDir, food, score;
-  let tick = START_MS, acc = 0, last = 0;
-  let running = false, dead = false;
+  /***********************
+   * GAME STATE
+   ***********************/
+  let snake = [];
+  let dir = {x:1, y:0};
+  let nextDir = {x:1, y:0};
+  let food = {x:10, y:10};
+  let score = 0;
+
+  let tickMs = START_MS;
+  let lastTime = 0;
+  let acc = 0;
+  let running = false;
+  let dead = false;
+
+  let unlockFlashT = 0;
+
+  function cellSize(){
+    return Math.floor(Math.min(canvas.width, canvas.height) / GRID);
+  }
 
   function reset(){
     score = 0;
-    setScore(score);
-    tick = START_MS;
+    setScoreUI(score);
+    tickMs = START_MS;
     dead = false;
     running = false;
-    snake = [];
+    unlockFlashT = 0;
+
     const mid = Math.floor(GRID/2);
-    for(let i=0;i<4;i++) snake.push({x:mid-i,y:mid});
-    dir = nextDir = {x:1,y:0};
+    snake = [
+      {x: mid,   y: mid},
+      {x: mid-1, y: mid},
+      {x: mid-2, y: mid},
+      {x: mid-3, y: mid},
+    ];
+    dir = {x:1,y:0};
+    nextDir = {x:1,y:0};
     food = spawnFood();
     enterShop.classList.remove("unlocked","flash");
   }
 
   function spawnFood(){
-    while(true){
+    for (let i=0; i<800; i++){
       const x = Math.floor(Math.random()*GRID);
       const y = Math.floor(Math.random()*GRID);
-      if(!snake.some(s=>s.x===x&&s.y===y)) return {x,y};
+      if (!snake.some(s => s.x===x && s.y===y)) return {x,y};
     }
+    return {x:0,y:0};
   }
 
   function step(){
+    if (dead) return;
+
     dir = nextDir;
     const head = snake[0];
     const nx = head.x + dir.x;
     const ny = head.y + dir.y;
 
-    if(nx<0||ny<0||nx>=GRID||ny>=GRID||
-       snake.some((s,i)=>i&&s.x===nx&&s.y===ny)){
-      dead=true; running=false; return;
+    if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID){
+      dead = true; running = false; return;
+    }
+    if (snake.some((s, idx) => idx!==0 && s.x===nx && s.y===ny)){
+      dead = true; running = false; return;
     }
 
-    snake.unshift({x:nx,y:ny});
+    snake.unshift({x:nx, y:ny});
 
-    if(nx===food.x&&ny===food.y){
-      score++;
-      setScore(score);
-      if(score % SPEEDUP_EVERY === 0)
-        tick = Math.max(MIN_MS, tick - SPEEDUP_MS);
-      if(score>=UNLOCK_SCORE) unlock();
+    if (nx === food.x && ny === food.y){
+      score += 1;
+      setScoreUI(score);
+
+      if (score % SPEEDUP_EVERY === 0){
+        tickMs = Math.max(MIN_MS, tickMs - SPEEDUP_MS);
+      }
+
+      if (score === UNLOCK_SCORE){
+        unlockUI();
+        unlockFlashT = 650;
+      } else if (score > UNLOCK_SCORE){
+        unlockUI();
+      }
+
+      if (score === DISCOUNT_SCORE){
+        // placeholder hook for discount later
+      }
+
       food = spawnFood();
-    } else snake.pop();
+    } else {
+      snake.pop();
+    }
   }
 
+  /***********************
+   * DRAW
+   ***********************/
   function draw(){
-    ctx.fillStyle="#000";
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = "#000";
     ctx.fillRect(0,0,canvas.width,canvas.height);
 
-    const cs = Math.floor(canvas.width / GRID);
-    ctx.fillStyle="#fff";
-    snake.forEach(s=>{
-      ctx.fillRect(s.x*cs+1,s.y*cs+1,cs-2,cs-2);
-    });
+    const cs = cellSize();
 
-    if(foodImg.complete){
-      const iw = foodImg.naturalWidth;
-      const ih = foodImg.naturalHeight;
-      const target = cs * FOOD_SCALE;
-      const scale = Math.min(target/iw,target/ih);
-      const w = iw*scale;
-      const h = ih*scale;
-      ctx.imageSmoothingEnabled = true;
-      ctx.drawImage(
-        foodImg,
-        food.x*cs+(cs-w)/2,
-        food.y*cs+(cs-h)/2,
-        w,h
-      );
-      ctx.imageSmoothingEnabled = false;
+    // snake (white blocks)
+    ctx.fillStyle = "#fff";
+    for (let i=0; i<snake.length; i++){
+      const s = snake[i];
+      const x = s.x * cs;
+      const y = s.y * cs;
+      ctx.fillRect(x + 1, y + 1, cs - 2, cs - 2);
     }
 
-    if(dead){
-      ctx.fillStyle="rgba(0,0,0,.35)";
+    // food (smooth logo)
+    const fx = food.x * cs;
+    const fy = food.y * cs;
+
+    if (foodImg.complete && foodImg.naturalWidth){
+      const target = cs * FOOD_SCALE_TO_CELL;
+
+      const iw = foodImg.naturalWidth;
+      const ih = foodImg.naturalHeight;
+      const scale = Math.min(target / iw, target / ih);
+
+      const dw = iw * scale;
+      const dh = ih * scale;
+
+      const dx = fx + (cs - dw)/2;
+      const dy = fy + (cs - dh)/2;
+
+      ctx.save();
+      ctx.imageSmoothingEnabled = true; // keep logo smooth
+      ctx.drawImage(foodImg, dx, dy, dw, dh);
+      ctx.restore();
+
+      setCrisp();
+    } else {
+      // fallback square
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(fx + cs*0.35, fy + cs*0.35, cs*0.3, cs*0.3);
+      ctx.fillStyle = "#fff";
+    }
+
+    // subtle border pulse on unlock
+    if (unlockFlashT > 0){
+      ctx.save();
+      ctx.globalAlpha = 0.22;
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = Math.max(4, Math.floor(cs*0.15));
+      ctx.strokeRect(ctx.lineWidth/2, ctx.lineWidth/2, canvas.width-ctx.lineWidth, canvas.height-ctx.lineWidth);
+      ctx.restore();
+    }
+
+    // death state (Source Sans Pro)
+    if (dead){
+      ctx.save();
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = "#000";
       ctx.fillRect(0,0,canvas.width,canvas.height);
-      ctx.fillStyle="#fff";
-      ctx.textAlign="center";
-      ctx.textBaseline="middle";
-      ctx.font=`${canvas.width*0.05}px "Source Sans Pro"`;
-      ctx.fillText("RESTART",canvas.width/2,canvas.height/2);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      ctx.font = `${Math.floor(canvas.width*0.05)}px "Source Sans Pro", Arial`;
+      ctx.fillText("RESTART", canvas.width/2, canvas.height/2);
+
+      ctx.font = `${Math.floor(canvas.width*0.025)}px "Source Sans Pro", Arial`;
+      ctx.fillText("Press R or tap", canvas.width/2, canvas.height/2 + Math.floor(canvas.width*0.06));
+      ctx.restore();
     }
   }
 
+  /***********************
+   * LOOP
+   ***********************/
   function loop(t){
-    if(!last) last=t;
-    acc += t-last;
-    last=t;
-    while(acc>=tick && running && !dead){
-      step(); acc-=tick;
+    if (!lastTime) lastTime = t;
+    const dt = t - lastTime;
+    lastTime = t;
+
+    if (running && !dead){
+      acc += dt;
+      while (acc >= tickMs){
+        step();
+        acc -= tickMs;
+      }
     }
+
+    if (unlockFlashT > 0){
+      unlockFlashT = Math.max(0, unlockFlashT - dt);
+    }
+
     draw();
     requestAnimationFrame(loop);
   }
 
-  function setDir(x,y){
-    if(x===-dir.x&&y===-dir.y) return;
-    nextDir={x,y};
-    if(!running&&!dead) running=true;
+  /***********************
+   * INPUT
+   ***********************/
+  function setDirection(dx, dy){
+    if (dx === -dir.x && dy === -dir.y) return;
+    nextDir = {x:dx,y:dy};
+    if (!running && !dead) running = true;
   }
 
-  window.addEventListener("keydown",e=>{
-    if(e.key==="ArrowUp")setDir(0,-1);
-    if(e.key==="ArrowDown")setDir(0,1);
-    if(e.key==="ArrowLeft")setDir(-1,0);
-    if(e.key==="ArrowRight")setDir(1,0);
-    if(e.key==="r"){reset();running=true;}
-  });
+  window.addEventListener("keydown", (e) => {
+    const k = e.key.toLowerCase();
+    if (k === "arrowup" || k === "w"){ e.preventDefault(); setDirection(0,-1); }
+    else if (k === "arrowdown" || k === "s"){ e.preventDefault(); setDirection(0,1); }
+    else if (k === "arrowleft" || k === "a"){ e.preventDefault(); setDirection(-1,0); }
+    else if (k === "arrowright" || k === "d"){ e.preventDefault(); setDirection(1,0); }
+    else if (k === "r"){
+      e.preventDefault();
+      reset();
+      running = true;
+    }
+  }, {passive:false});
 
+  // touch swipe
+  let sx=0, sy=0, touching=false;
+  canvas.addEventListener("touchstart", (e) => {
+    if (!e.touches || e.touches.length !== 1) return;
+    touching = true;
+    sx = e.touches[0].clientX;
+    sy = e.touches[0].clientY;
+  }, {passive:true});
+
+  canvas.addEventListener("touchmove", (e) => {
+    if (touching) e.preventDefault();
+  }, {passive:false});
+
+  canvas.addEventListener("touchend", (e) => {
+    if (!touching) return;
+    touching = false;
+
+    const t = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0] : null;
+    if (!t) return;
+
+    const dx = t.clientX - sx;
+    const dy = t.clientY - sy;
+
+    const adx = Math.abs(dx);
+    const ady = Math.abs(dy);
+    const threshold = 14;
+
+    if (adx < threshold && ady < threshold){
+      if (dead){
+        reset();
+        running = true;
+      }
+      return;
+    }
+
+    if (adx > ady){
+      setDirection(dx > 0 ? 1 : -1, 0);
+    } else {
+      setDirection(0, dy > 0 ? 1 : -1);
+    }
+  }, {passive:true});
+
+  /***********************
+   * INIT
+   ***********************/
   async function init(){
-    await document.fonts.load('600 20px "Source Sans Pro"');
+    // Ensure fonts are loaded before we measure + draw text
+    try{
+      if (document.fonts && document.fonts.load){
+        await document.fonts.load('600 24px "Source Sans Pro"');
+      }
+    } catch (_) {}
+
+    // Fit stage first (so module measures correctly), then canvas
     fitStage();
-    resizeCanvas();
+    resizeCanvasToBox();
+
+    // Also refit after next paint (helps in iframes)
+    requestAnimationFrame(() => {
+      fitStage();
+      resizeCanvasToBox();
+    });
+
     reset();
+    setCrisp();
     requestAnimationFrame(loop);
   }
 
-  init();
+  if (document.readyState === "loading"){
+    window.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
 })();
 </script>
 
