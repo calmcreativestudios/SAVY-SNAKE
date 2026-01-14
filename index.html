@@ -8,7 +8,7 @@
   <!-- Source Sans Pro -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
 
   <style>
     :root{
@@ -17,14 +17,18 @@
       --game:#000000;
       --ui:#000000;
     }
-    html,body{margin:0; padding:0; background:var(--bg); color:var(--ui); font-family:"Source Sans 3","Source Sans Pro",system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;}
+    html,body{
+      margin:0; padding:0;
+      background:var(--bg);
+      color:var(--ui);
+      font-family:"Source Sans Pro",system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    }
 
     /* MODULE WRAP (embed this whole thing in Readymag) */
     .savy-snake{
       display:flex;
       align-items:flex-start;
       gap:48px;
-      /* You can control overall placement in Readymag; keep this minimal */
     }
 
     /* GAME BOX */
@@ -43,13 +47,13 @@
       height:100%;
       display:block;
       background:transparent;
-      image-rendering: pixelated;
+      image-rendering: pixelated; /* snake pixels */
     }
 
     /* RIGHT UI */
     .sideUI{
       min-width:220px;
-      padding-top:8px; /* aligns SCORE with top edge visually */
+      padding-top:8px; /* align SCORE with top edge visually */
       user-select:none;
     }
 
@@ -57,6 +61,7 @@
       font-size:16px;
       letter-spacing:0.5px;
       text-transform:uppercase;
+      font-weight:400;
     }
 
     .enterShop{
@@ -64,6 +69,7 @@
       font-size:16px;
       letter-spacing:0.5px;
       text-transform:uppercase;
+      font-weight:400;
       opacity:0;
       pointer-events:none;
       transition:opacity 180ms linear;
@@ -100,21 +106,13 @@
         width:min(94vw, 900px);
         height:min(94vw, 900px);
       }
-      .sideUI{
-        padding-top:0;
-      }
-      .enterShop{
-        margin-top:16px;
-      }
+      .sideUI{ padding-top:0; }
+      .enterShop{ margin-top:16px; }
     }
   </style>
 </head>
 <body>
 
-  <!--
-    Drop this block into Readymag (Embed/Code block).
-    If Readymag already has page nav/logo, keep only this module.
-  -->
   <div class="savy-snake" id="savySnakeModule">
     <div class="gameBox" aria-label="Savy Snake game">
       <canvas id="game" width="900" height="900"></canvas>
@@ -135,68 +133,18 @@
   const DISCOUNT_SCORE = 100; // later
   const SHOP_URL = ""; // <-- Put your shop URL here. If empty, it won't redirect.
 
-  // Game feel (faster than the earlier test)
-  const GRID = 28;                 // grid size (pixel/block feel)
-  const START_MS = 85;             // base speed (lower = faster)
-  const MIN_MS = 55;               // max speed cap
-  const SPEEDUP_EVERY = 5;         // speed up every N points
-  const SPEEDUP_MS = 4;            // reduce interval by this much
+  // Faster feel
+  const GRID = 28;
+  const START_MS = 80;
+  const MIN_MS = 52;
+  const SPEEDUP_EVERY = 4;
+  const SPEEDUP_MS = 4;
 
-  /***********************
-   * SVG LOGO (food)
-   * IMPORTANT: kept smooth (no pixelation)
-   ***********************/
-  const SAVY_SVG = `<?xml version="1.0" encoding="utf-8"?>
-<!-- Generator: Adobe Illustrator 27.5.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
-<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
-	 viewBox="0 0 1186.6 508.1" style="enable-background:new 0 0 1186.6 508.1;" xml:space="preserve">
-<style type="text/css">
-	.st0{fill:#010101;}
-</style>
-<g>
-	<path class="st0" d="M72.9,404.1c0,0-16.6,4.9-22.6-12.5c-5.2-15.2,7.4-26.8,7.4-26.8l17.3-16.1c0,0-21,0.8-42.9,23.5
-		c-28.4,29.4-12.1,60.6,13,75c26.7,15.3,53.5-1,53.5-1L72.9,404.1z"/>
-	<path class="st0" d="M186.4,315.2c0,0,16.6-4.9,22.6,12.5c5.2,15.2-7.4,26.8-7.4,26.8l-17.3,16.1c0,0,21-0.8,42.9-23.5
-		c28.4-29.4,12.1-60.6-13-75c-26.7-15.3-53.5,1-53.5,1L186.4,315.2z"/>
-	<path class="st0" d="M287.7,141.4c0,0-33.7-49.2-105.3-56.8c-71.6-7.6-123.8,45.7-123.8,45.7s6.8,9,14.1,19.6
-		c0,0,46.1-41.2,101.3-36.2c0,0,48.7,2.5,85.4,52L287.7,141.4z"/>
-	<path class="st0" d="M591.2,34.3c0,0-165.8,111-277.6,288.4c-72.6,115.1-135.2,185-195.9,185c0,0-31.7,1-41-7.9
-		c0,0-24.4-22.9,4.1-65.1c0,0,20-25.6,66.3-48.1l23.5-43.7c0,0-81,23.4-114.2,82.6c0,0-28.6,48.4,4.2,77.7
-		c22.9,20.5,55.4,16.7,55.4,16.7s91.9,7.2,201.2-176.3C317.2,343.5,431.7,167.5,591.2,34.3z"/>
-	<path class="st0" d="M757.3,17.4c0,0-219.1,111.3-374.6,329.5c0,0-67.9,93.5-126.9,126.4c0,0-34.2,19.8-57.6,14.9
-		c0,0-35.4-5.7-22.2-53.9c0,0,9.4-27.4,45.4-50.6l17.8-43c0,0-68.4,31.1-87.9,75.1c0,0-15.2,34.6,0.1,55.4
-		c0,0,13.5,23.1,55.2,20.7c0,0,41.5,1.7,89.6-39c0,0,65.6-47,127.7-134.8c0,0,130.4-196.9,333.8-312.7
-		C757.7,5.6,769.1,0,757.3,17.4z"/>
-	<path class="st0" d="M861.3,25.5c0,0-134.2,79.2-275.7,253.5c-107.9,133-153.8,170.9-206.8,188.5c0,0,25.4-22,51.3-64.7
-		c0,0-29.4,34.2-76.9,62.4c0,0-29.5,20.9-60.2,20.2c0,0-18.8-0.4-26.1-10.7c0,0-10.2-14.8,0.6-37.5
-		c0,0,10.2-26,40.4-49.8c0,0,14.8-9.6,30.4-14.8l24.4-45.8c0,0-55.8,7.6-95.3,58.6c0,0-34.1,45.5-9.4,78.8
-		c0,0,16.1,28.3,60.9,22.5c0,0,50.8-5.4,102.1-44.2c0,0,40.9-29.2,114.2-122.4c0,0,127.3-162.8,227.5-230.5
-		C862.6,12.3,874.7,5.9,861.3,25.5z"/>
-	<path class="st0" d="M969.4,21.4c0,0-229.6,121.3-357.1,303.7c0,0-80.5,120.9-106.7,147.6c0,0-20.9,24-20.6,0.5
-		c0,0-0.4-22.9,40.1-103.5c0,0,51.1-90.3,145.5-178.7l-10.4-2.7c0,0-107.1,100.1-156.5,200.3c0,0-45.9,92-16.8,104.6
-		c0,0,18,9.5,54.8-33.8c0,0,25.3-25.8,73.5-99.9c0,0,156.7-219.4,353.8-326.7C969,33.4,982.4,27.1,969.4,21.4z"/>
-	<path class="st0" d="M1078.8,23.8c0,0-205.6,99.2-329.2,278.7c0,0-69.1,100.4-122.9,149.2c0,0-19.9,22.5-18.5,7
-		c0,0-0.2-16.9,44.2-95.1c0,0,50.9-83.7,141.4-158l-9.8-4.2c0,0-95.1,78.3-154.9,178.8c0,0-56.2,87.8-37.1,103.2
-		c0,0,12.7,20.1,84.6-48.8c0,0,60.9-53.1,125.1-144.8c0,0,133.8-182.8,280.9-259.6C1082.5,30.1,1095.1,23.9,1078.8,23.8z"
-		/>
-	<path class="st0" d="M1173.1,19.5c0,0-176.8,79.2-296.5,270.8c0,0-56.1,89.3-135,172.9c0,0-22.1,29.6-23,0.1
-		c0,0,0.2-21.1,36.7-84.5c0,0,52.1-80.2,124.4-137.8l-9.7-3c0,0-88.4,66-146.6,156.8c0,0-54.1,79.4-30.3,96.3
-		c0,0,18,15,63.5-22.3c0,0,69.5-52.3,149.6-174.5c0,0,119.8-181.7,268.4-258.3C1174,36,1194.2,26.7,1173.1,19.5z"/>
-</g>
-</svg>`;
+  // Food (logo) sizing: bigger than a single tile for visibility
+  const FOOD_SCALE_TO_CELL = 1.6; // 1.0 = one tile; 1.6 recommended for thin/wide logo
 
-  function svgToImage(svgText){
-    const encoded = encodeURIComponent(svgText)
-      .replace(/'/g, "%27")
-      .replace(/"/g, "%22");
-    const src = `data:image/svg+xml;charset=utf-8,${encoded}`;
-    const img = new Image();
-    img.decoding = "async";
-    img.src = src;
-    return img;
-  }
-
-  const foodImg = svgToImage(SAVY_SVG);
+  // IMPORTANT: Put your SVG file in the repo root as: savy-logo.svg
+  const LOGO_SRC = "./savy-logo.svg";
 
   /***********************
    * CANVAS SETUP
@@ -204,15 +152,13 @@
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d", { alpha:true });
 
-  // Ensure crisp blocks
   function setCrisp(){
+    // crisp pixel snake
     ctx.imageSmoothingEnabled = false;
-    // Safari aliases
     ctx.webkitImageSmoothingEnabled = false;
     ctx.mozImageSmoothingEnabled = false;
   }
 
-  // Fit canvas to its displayed size (keeps pixel look)
   function resizeCanvasToBox(){
     const box = canvas.parentElement.getBoundingClientRect();
     const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -227,7 +173,6 @@
       draw(true);
     }
   }
-
   window.addEventListener("resize", resizeCanvasToBox);
 
   /***********************
@@ -244,25 +189,29 @@
   function unlockUI(){
     if (!enterShop.classList.contains("unlocked")){
       enterShop.classList.add("unlocked");
-      // subtle flash
       enterShop.classList.remove("flash");
-      void enterShop.offsetWidth; // restart anim
+      void enterShop.offsetWidth;
       enterShop.classList.add("flash");
     }
   }
 
   enterShop.addEventListener("click", () => {
-    // Keep playing is allowed; this only performs the action.
     if (!enterShop.classList.contains("unlocked")) return;
-
     if (SHOP_URL && typeof SHOP_URL === "string"){
       window.location.href = SHOP_URL;
     } else {
-      // Readymag alternative: hook this into whatever action you want later
-      // e.g. window.parent.postMessage({ type:"SAVY_ENTER_SHOP" }, "*");
       console.log("ENTER SHOP clicked. Set SHOP_URL in code to redirect.");
     }
   });
+
+  /***********************
+   * FOOD LOGO IMAGE
+   ***********************/
+  const foodImg = new Image();
+  foodImg.decoding = "async";
+  // If GitHub pages caches, you can add a simple cache-buster:
+  // foodImg.src = `${LOGO_SRC}?v=${Date.now()}`;
+  foodImg.src = LOGO_SRC;
 
   /***********************
    * GAME STATE
@@ -279,11 +228,10 @@
   let running = false;
   let dead = false;
 
-  // visual flash on unlock (brief white ring)
+  // subtle border flash on unlock
   let unlockFlashT = 0; // ms remaining
 
   function cellSize(){
-    // integer cell size for crispness
     return Math.floor(Math.min(canvas.width, canvas.height) / GRID);
   }
 
@@ -297,7 +245,7 @@
 
     const mid = Math.floor(GRID/2);
     snake = [
-      {x: mid, y: mid},
+      {x: mid,   y: mid},
       {x: mid-1, y: mid},
       {x: mid-2, y: mid},
       {x: mid-3, y: mid},
@@ -344,24 +292,20 @@
       score += 1;
       setScoreUI(score);
 
-      // speed up a bit
       if (score % SPEEDUP_EVERY === 0){
         tickMs = Math.max(MIN_MS, tickMs - SPEEDUP_MS);
       }
 
-      // unlock at 22 (flash + show ENTER SHOP)
       if (score === UNLOCK_SCORE){
         unlockUI();
-        unlockFlashT = 650; // ms
+        unlockFlashT = 650;
       }
       if (score > UNLOCK_SCORE){
         unlockUI();
       }
 
-      // discount at 100 later
       if (score === DISCOUNT_SCORE){
-        // placeholder hook for later
-        // e.g. show small text / badge / message (not implemented yet)
+        // placeholder hook for later (discount code / token)
       }
 
       food = spawnFood();
@@ -373,14 +317,13 @@
   /***********************
    * DRAW
    ***********************/
-  function draw(force=false){
-    // clear black
+  function draw(){
+    // black board
     ctx.clearRect(0,0,canvas.width,canvas.height);
     ctx.fillStyle = "#000";
     ctx.fillRect(0,0,canvas.width,canvas.height);
 
     const cs = cellSize();
-    const pad = 0; // hard pixels
 
     // snake (white blocks)
     ctx.fillStyle = "#fff";
@@ -388,35 +331,44 @@
       const s = snake[i];
       const x = s.x * cs;
       const y = s.y * cs;
-      // slight inset for definition
       ctx.fillRect(x + 1, y + 1, cs - 2, cs - 2);
     }
 
     // food (smooth SVG logo)
-    // keep it inside a cell, scale to fit while preserving aspect ratio
     const fx = food.x * cs;
     const fy = food.y * cs;
 
-    // draw food only if image ready
     if (foodImg.complete && foodImg.naturalWidth){
-      const target = cs * 0.9;
+      const target = cs * FOOD_SCALE_TO_CELL;
+
       const iw = foodImg.naturalWidth;
       const ih = foodImg.naturalHeight;
       const scale = Math.min(target / iw, target / ih);
+
       const dw = iw * scale;
       const dh = ih * scale;
 
       const dx = fx + (cs - dw)/2;
       const dy = fy + (cs - dh)/2;
+
+      // Keep the logo smooth (do NOT disable smoothing for images),
+      // but snake remains pixel because we draw it as rects.
+      // Some browsers obey imageSmoothing for drawImage; we leave it default true for logo.
+      ctx.save();
+      ctx.imageSmoothingEnabled = true;
       ctx.drawImage(foodImg, dx, dy, dw, dh);
+      ctx.restore();
+
+      // restore crisp for any other ops
+      setCrisp();
     } else {
-      // fallback: tiny white square until logo loads
+      // fallback until logo loads
       ctx.fillStyle = "#fff";
       ctx.fillRect(fx + cs*0.35, fy + cs*0.35, cs*0.3, cs*0.3);
       ctx.fillStyle = "#fff";
     }
 
-    // unlock flash: subtle white border pulse (not celebratory)
+    // unlock border pulse (subtle)
     if (unlockFlashT > 0){
       ctx.save();
       ctx.globalAlpha = 0.22;
@@ -426,7 +378,7 @@
       ctx.restore();
     }
 
-    // death state (very minimal)
+    // dead state (Source Sans Pro)
     if (dead){
       ctx.save();
       ctx.globalAlpha = 0.35;
@@ -434,11 +386,13 @@
       ctx.fillRect(0,0,canvas.width,canvas.height);
       ctx.globalAlpha = 1;
       ctx.fillStyle = "#fff";
-      ctx.font = `${Math.floor(canvas.width*0.05)}px "Source Sans 3", Arial`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
+
+      ctx.font = `${Math.floor(canvas.width*0.05)}px "Source Sans Pro", Arial`;
       ctx.fillText("RESTART", canvas.width/2, canvas.height/2);
-      ctx.font = `${Math.floor(canvas.width*0.025)}px "Source Sans 3", Arial`;
+
+      ctx.font = `${Math.floor(canvas.width*0.025)}px "Source Sans Pro", Arial`;
       ctx.fillText("Press R or tap", canvas.width/2, canvas.height/2 + Math.floor(canvas.width*0.06));
       ctx.restore();
     }
@@ -472,13 +426,11 @@
    * INPUT
    ***********************/
   function setDirection(dx, dy){
-    // block reversal
     if (dx === -dir.x && dy === -dir.y) return;
     nextDir = {x:dx,y:dy};
     if (!running && !dead) running = true;
   }
 
-  // keyboard
   window.addEventListener("keydown", (e) => {
     const k = e.key.toLowerCase();
     if (k === "arrowup" || k === "w"){ e.preventDefault(); setDirection(0,-1); }
@@ -502,7 +454,6 @@
   }, {passive:true});
 
   canvas.addEventListener("touchmove", (e) => {
-    // prevent page scroll while swiping on the game
     if (touching) e.preventDefault();
   }, {passive:false});
 
@@ -521,7 +472,6 @@
     const threshold = 14;
 
     if (adx < threshold && ady < threshold){
-      // tap-to-restart if dead
       if (dead){
         reset();
         running = true;
@@ -536,19 +486,30 @@
     }
   }, {passive:true});
 
-  // start when logo image is ready (not required, but avoids first-frame blank food)
-  function init(){
+  /***********************
+   * INIT (wait for font + logo enough to avoid obvious fallback)
+   ***********************/
+  async function init(){
     resizeCanvasToBox();
     setCrisp();
+
+    // Wait briefly for font (prevents canvas fallback look)
+    try{
+      if (document.fonts && document.fonts.load){
+        await document.fonts.load('600 24px "Source Sans Pro"');
+      }
+    } catch (_) {}
+
     reset();
     requestAnimationFrame(loop);
   }
 
-  if (foodImg.complete){
-    init();
+  // Start once logo is at least requested; it can still appear once loaded.
+  // If logo fails, game still runs.
+  if (document.readyState === "loading"){
+    window.addEventListener("DOMContentLoaded", init);
   } else {
-    foodImg.onload = init;
-    foodImg.onerror = init;
+    init();
   }
 })();
 </script>
