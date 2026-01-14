@@ -327,11 +327,16 @@
         tickMs = Math.max(MIN_MS, tickMs - SPEEDUP_MS);
       }
 
-      if (score === UNLOCK_SCORE){
-        unlockUI();
-        unlockFlashT = 650;
-      } else if (score > UNLOCK_SCORE){
-        unlockUI();
+     if (score === UNLOCK_SCORE){
+  unlockUI();
+  unlockFlashT = 650;
+
+  // 🔓 Unlock Readymag store button (fires once)
+  window.parent.postMessage({ type: "unlockStore" }, "*");
+
+} else if (score > UNLOCK_SCORE){
+  unlockUI();
+}
       }
 
       if (score === DISCOUNT_SCORE){
