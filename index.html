@@ -2,307 +2,285 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Savy Snake</title>
-
-  <!-- Source Sans Pro -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
-
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Game</title>
   <style>
-    :root{
-      --gameSize: 900px;   /* change to 800px later if needed */
-      --gap: 48px;
-      --sideMin: 220px;
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden; /* no page scroll */
+      background: #000;
     }
 
-    html,body{
-      margin:0;
-      padding:0;
-      width:100%;
-      height:100%;
-      background:#fff;
-      font-family:"Source Sans Pro", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      overflow:hidden;
+    #wrap {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: #000;
+      touch-action: none; /* blocks touch scrolling */
     }
 
-    /* Stage = fixed design canvas that scales to iframe size */
-    #stage{
-      position:fixed;
-      left:0;
-      top:0;
-      transform-origin:0 0;
-      will-change:transform;
+    canvas {
+      display: block;
+      image-rendering: pixelated;
+      outline: none;
     }
 
-    .savy-snake{
-      display:flex;
-      align-items:flex-start;
-      gap:var(--gap);
+    #hud {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: #fff;
     }
 
-    .gameBox{
-      width:var(--gameSize);
-      height:var(--gameSize);
-      background:#000;
-      border:6px solid #000;
-      box-sizing:border-box;
-      display:grid;
-      place-items:center;
+    #msg {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      font-weight: 600;
+      line-height: 1.25;
+      opacity: 0;
+      transition: opacity 140ms ease;
+      white-space: pre-line;
     }
 
-    canvas{
-      width:100%;
-      height:100%;
-      display:block;
-      image-rendering:pixelated;
-    }
+    #msg.show { opacity: 1; }
 
-    .sideUI{
-      min-width:var(--sideMin);
-      padding-top:8px;
-      user-select:none;
-    }
-
-    .score,
-    .enterShop{
-      font-size:16px;
-      letter-spacing:0.5px;
-      text-transform:uppercase;
-      font-weight:400;
-    }
-
-    .enterShop{
-      margin-top:44px;
-      opacity:0;
-      pointer-events:none;
-      transition:opacity 180ms linear;
-      cursor:pointer;
-    }
-
-    .enterShop.unlocked{
-      opacity:1;
-      pointer-events:auto;
-    }
-
-    .enterShop.flash{
-      animation:flash 0.65s linear 1;
-    }
-
-    @keyframes flash{
-      0%{opacity:.15;}
-      12%{opacity:1;}
-      24%{opacity:.15;}
-      36%{opacity:1;}
-      48%{opacity:.15;}
-      60%{opacity:1;}
-      100%{opacity:1;}
+    #score {
+      position: absolute;
+      left: 12px;
+      top: 10px;
+      font-size: 14px;
+      opacity: 0.9;
     }
   </style>
 </head>
-
 <body>
-
-<div id="stage">
-  <div class="savy-snake" id="module">
-    <div class="gameBox">
-      <canvas id="game"></canvas>
-    </div>
-
-    <div class="sideUI">
-      <div class="score" id="scoreText">SCORE: 00</div>
-      <div class="enterShop" id="enterShop">ENTER SHOP</div>
-    </div>
+  <div id="wrap">
+    <canvas id="c" tabindex="0"></canvas>
   </div>
-</div>
 
-<script>
-(() => {
-  /* SETTINGS */
-  const UNLOCK_SCORE = 22;
-  const GRID = 28;
-  const START_MS = 80;
-  const MIN_MS = 52;
-  const SPEEDUP_EVERY = 4;
-  const SPEEDUP_MS = 4;
-  const FOOD_SCALE = 1.6;
-  const LOGO_SRC = "./savy-logo.svg";
+  <div id="hud">
+    <div id="score"></div>
+    <div id="msg"></div>
+  </div>
 
-  /* STAGE SCALING (fixes Readymag preview issues) */
-  function fitStage(){
-    const stage = document.getElementById("stage");
-    const mod = document.getElementById("module");
-    const w = mod.offsetWidth;
-    const h = mod.offsetHeight;
+  <script>
+    /**
+     * Full drop-in game shell:
+     * - fits canvas to container
+     * - prevents page scrolling with game keys
+     * - restart via Spacebar (and optional R)
+     * - tap/click to restart on mobile/desktop when game over
+     */
 
-    stage.style.width = w + "px";
-    stage.style.height = h + "px";
+    const wrap = document.getElementById('wrap');
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d', { alpha: false });
 
-    const scale = Math.min(window.innerWidth / w, window.innerHeight / h);
-    stage.style.transform = `scale(${scale})`;
-    stage.style.left = ((window.innerWidth - w * scale) / 2) + "px";
-    stage.style.top  = ((window.innerHeight - h * scale) / 2) + "px";
-  }
+    const scoreEl = document.getElementById('score');
+    const msgEl = document.getElementById('msg');
 
-  window.addEventListener("resize", fitStage);
+    // ---------- Input (prevents scroll) ----------
+    const keys = new Set();
 
-  /* CANVAS */
-  const canvas = document.getElementById("game");
-  const ctx = canvas.getContext("2d");
+    const BLOCK_KEYS = new Set([
+      "ArrowUp","ArrowDown","ArrowLeft","ArrowRight",
+      " ","Spacebar","Space",
+      "w","a","s","d","W","A","S","D"
+    ]);
 
-  function resizeCanvas(){
-    const box = canvas.parentElement.getBoundingClientRect();
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    canvas.width = Math.floor(box.width * dpr);
-    canvas.height = Math.floor(box.height * dpr);
-    ctx.imageSmoothingEnabled = false;
-  }
-
-  window.addEventListener("resize", resizeCanvas);
-
-  /* UI */
-  const scoreText = document.getElementById("scoreText");
-  const enterShop = document.getElementById("enterShop");
-
-  function setScore(n){
-    scoreText.textContent = "SCORE: " + String(n).padStart(2,"0");
-  }
-
-  function unlock(){
-    if (!enterShop.classList.contains("unlocked")){
-      enterShop.classList.add("unlocked");
-      enterShop.classList.add("flash");
-    }
-  }
-
-  /* GAME */
-  const foodImg = new Image();
-  foodImg.src = LOGO_SRC;
-
-  let snake, dir, nextDir, food, score;
-  let tick = START_MS, acc = 0, last = 0;
-  let running = false, dead = false;
-
-  function reset(){
-    score = 0;
-    setScore(score);
-    tick = START_MS;
-    dead = false;
-    running = false;
-    snake = [];
-    const mid = Math.floor(GRID/2);
-    for(let i=0;i<4;i++) snake.push({x:mid-i,y:mid});
-    dir = nextDir = {x:1,y:0};
-    food = spawnFood();
-    enterShop.classList.remove("unlocked","flash");
-  }
-
-  function spawnFood(){
-    while(true){
-      const x = Math.floor(Math.random()*GRID);
-      const y = Math.floor(Math.random()*GRID);
-      if(!snake.some(s=>s.x===x&&s.y===y)) return {x,y};
-    }
-  }
-
-  function step(){
-    dir = nextDir;
-    const head = snake[0];
-    const nx = head.x + dir.x;
-    const ny = head.y + dir.y;
-
-    if(nx<0||ny<0||nx>=GRID||ny>=GRID||
-       snake.some((s,i)=>i&&s.x===nx&&s.y===ny)){
-      dead=true; running=false; return;
-    }
-
-    snake.unshift({x:nx,y:ny});
-
-    if(nx===food.x&&ny===food.y){
-      score++;
-      setScore(score);
-      if(score % SPEEDUP_EVERY === 0)
-        tick = Math.max(MIN_MS, tick - SPEEDUP_MS);
-      if(score>=UNLOCK_SCORE) unlock();
-      food = spawnFood();
-    } else snake.pop();
-  }
-
-  function draw(){
-    ctx.fillStyle="#000";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-
-    const cs = Math.floor(canvas.width / GRID);
-    ctx.fillStyle="#fff";
-    snake.forEach(s=>{
-      ctx.fillRect(s.x*cs+1,s.y*cs+1,cs-2,cs-2);
-    });
-
-    if(foodImg.complete){
-      const iw = foodImg.naturalWidth;
-      const ih = foodImg.naturalHeight;
-      const target = cs * FOOD_SCALE;
-      const scale = Math.min(target/iw,target/ih);
-      const w = iw*scale;
-      const h = ih*scale;
-      ctx.imageSmoothingEnabled = true;
-      ctx.drawImage(
-        foodImg,
-        food.x*cs+(cs-w)/2,
-        food.y*cs+(cs-h)/2,
-        w,h
+    function isRestartKey(k) {
+      // Space variants + optional R
+      return (
+        k === ' ' || k === 'Space' || k === 'Spacebar' ||
+        k === 'r' || k === 'R'
       );
-      ctx.imageSmoothingEnabled = false;
     }
 
-    if(dead){
-      ctx.fillStyle="rgba(0,0,0,.35)";
-      ctx.fillRect(0,0,canvas.width,canvas.height);
-      ctx.fillStyle="#fff";
-      ctx.textAlign="center";
-      ctx.textBaseline="middle";
-      ctx.font=`${canvas.width*0.05}px "Source Sans Pro"`;
-      ctx.fillText("RESTART",canvas.width/2,canvas.height/2);
+    function onKeyDown(e) {
+      const k = e.key;
+
+      // Prevent browser scroll / page actions
+      if (BLOCK_KEYS.has(k) || BLOCK_KEYS.has(String(k).toLowerCase())) {
+        e.preventDefault();
+      }
+
+      keys.add(k);
+
+      // Restart on Space/R when game over
+      if (state.gameOver && isRestartKey(k)) {
+        restart();
+      }
     }
-  }
 
-  function loop(t){
-    if(!last) last=t;
-    acc += t-last;
-    last=t;
-    while(acc>=tick && running && !dead){
-      step(); acc-=tick;
+    function onKeyUp(e) {
+      const k = e.key;
+      if (BLOCK_KEYS.has(k) || BLOCK_KEYS.has(String(k).toLowerCase())) {
+        e.preventDefault();
+      }
+      keys.delete(k);
     }
-    draw();
-    requestAnimationFrame(loop);
-  }
 
-  function setDir(x,y){
-    if(x===-dir.x&&y===-dir.y) return;
-    nextDir={x,y};
-    if(!running&&!dead) running=true;
-  }
+    // Attach to window so iframe still catches input
+    window.addEventListener('keydown', onKeyDown, { passive: false });
+    window.addEventListener('keyup', onKeyUp, { passive: false });
 
-  window.addEventListener("keydown",e=>{
-    if(e.key==="ArrowUp")setDir(0,-1);
-    if(e.key==="ArrowDown")setDir(0,1);
-    if(e.key==="ArrowLeft")setDir(-1,0);
-    if(e.key==="ArrowRight")setDir(1,0);
-    if(e.key==="r"){reset();running=true;}
-  });
+    // Block scrolling via wheel/touch within iframe
+    window.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
+    window.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 
-  async function init(){
-    await document.fonts.load('600 20px "Source Sans Pro"');
-    fitStage();
-    resizeCanvas();
-    reset();
-    requestAnimationFrame(loop);
-  }
+    // Focus canvas to improve key capture in some hosts
+    canvas.addEventListener('pointerdown', () => canvas.focus());
 
-  init();
-})();
-</script>
+    // Tap/click anywhere on the game to restart when game over
+    wrap.addEventListener('pointerdown', () => {
+      if (state.gameOver) restart();
+    }, { passive: true });
 
+    // ---------- Resize / Fit ----------
+    const BASE_W = 800;
+    const BASE_H = 800;
+
+    function resize() {
+      const rect = wrap.getBoundingClientRect();
+      const scale = Math.min(rect.width / BASE_W, rect.height / BASE_H);
+
+      const cssW = Math.floor(BASE_W * scale);
+      const cssH = Math.floor(BASE_H * scale);
+
+      canvas.width = BASE_W;
+      canvas.height = BASE_H;
+
+      canvas.style.width = cssW + 'px';
+      canvas.style.height = cssH + 'px';
+    }
+
+    new ResizeObserver(resize).observe(wrap);
+    resize();
+
+    // ---------- Game State ----------
+    const state = {
+      running: true,
+      gameOver: false,
+      score: 0
+    };
+
+    // Demo game object (replace with your real game logic if needed)
+    function Game() {
+      return {
+        x: BASE_W / 2,
+        y: BASE_H / 2,
+        vx: 0,
+        vy: 0,
+        size: 18,
+        speed: 0.9
+      };
+    }
+
+    let game = Game();
+
+    function restart() {
+      state.running = true;
+      state.gameOver = false;
+      state.score = 0;
+      keys.clear();
+      game = Game();
+      hideMessage();
+    }
+
+    function gameOver() {
+      state.running = false;
+      state.gameOver = true;
+      showMessage("Restart\nPress Space or Tap to Restart");
+    }
+
+    function showMessage(text) {
+      msgEl.textContent = text;
+      msgEl.classList.add('show');
+    }
+
+    function hideMessage() {
+      msgEl.classList.remove('show');
+      msgEl.textContent = '';
+    }
+
+    // ---------- Loop ----------
+    let last = performance.now();
+
+    function tick(now) {
+      const dt = Math.min(32, now - last);
+      last = now;
+
+      update(dt / 16.6667);
+      render();
+
+      requestAnimationFrame(tick);
+    }
+
+    function update(step) {
+      scoreEl.textContent = `Score: ${state.score}`;
+      if (!state.running) return;
+
+      const up = keys.has('ArrowUp') || keys.has('w') || keys.has('W');
+      const down = keys.has('ArrowDown') || keys.has('s') || keys.has('S');
+      const left = keys.has('ArrowLeft') || keys.has('a') || keys.has('A');
+      const right = keys.has('ArrowRight') || keys.has('d') || keys.has('D');
+
+      game.vx = 0;
+      game.vy = 0;
+      if (up) game.vy -= game.speed;
+      if (down) game.vy += game.speed;
+      if (left) game.vx -= game.speed;
+      if (right) game.vx += game.speed;
+
+      game.x += game.vx * 6 * step;
+      game.y += game.vy * 6 * step;
+
+      state.score += (Math.abs(game.vx) + Math.abs(game.vy)) > 0 ? 1 : 0;
+
+      // Demo death condition
+      if (
+        game.x < game.size ||
+        game.x > BASE_W - game.size ||
+        game.y < game.size ||
+        game.y > BASE_H - game.size
+      ) {
+        gameOver();
+      }
+    }
+
+    function render() {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, BASE_W, BASE_H);
+
+      ctx.strokeStyle = '#222';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(1, 1, BASE_W - 2, BASE_H - 2);
+
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(
+        Math.floor(game.x - game.size / 2),
+        Math.floor(game.y - game.size / 2),
+        game.size,
+        game.size
+      );
+
+      if (state.gameOver) {
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.fillRect(0, 0, BASE_W, BASE_H);
+      }
+    }
+
+    requestAnimationFrame(tick);
+
+    // Extra focus helper for some embeds
+    window.addEventListener('pointerdown', () => canvas.focus(), { passive: true });
+  </script>
 </body>
 </html>
