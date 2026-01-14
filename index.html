@@ -203,20 +203,48 @@
 
   // Make internal canvas resolution match its displayed size (keeps pixels crisp)
 function resizeCanvasToBox(){
-  // Use layout size (not getBoundingClientRect) because Readymag may scale via transforms
   const boxEl = canvas.parentElement;
-  const cssW = boxEl.clientWidth;
-  const cssH = boxEl.clientHeight;
 
-  // Render extra pixels for sharpness (supersampling)
-  const dpr = (window.devicePixelRatio || 1);
-  const SUPERSAMPLE = 2; // try 2 first. If still soft, try 3 (heavier)
+  let cssW = boxEl.clientWidth;
+  let cssH = boxEl.clientHeight;
 
-  // Cap to avoid insane GPU load
-  const MAX_PX = 5000;
+  // Readymag fallback when clientWidth = 0
+  if (!cssW || !cssH){
+    const r = boxEl.getBoundingClientRect();
+    cssW = Math.round(r.width);
+    cssH = Math.round(r.height);
+  }
+
+  if (cssW < 2 || cssH < 2) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const SUPERSAMPLE = 2;     // sharpness boost
+  const MAX_PX = 5000;       // safety cap
 
   const px = Math.min(MAX_PX, Math.floor(cssW * dpr * SUPERSAMPLE));
   const py = Math.min(MAX_PX, Math.floor(cssH * dpr * SUPERSAMPLE));
+
+  if (px < 2 || py < 2) return;
+
+  if (canvas.width !== px || canvas.height !== py){
+    canvas.width = px;
+    canvas.height = py;
+    setCrisp();
+  }
+}
+
+  // Still nothing? Don't touch the canvas yet.
+  if (cssW < 2 || cssH < 2) return;
+
+  const dpr = (window.devicePixelRatio || 1);
+  const SUPERSAMPLE = 2; // 2 is a good balance. If heavy, drop to 1.
+  const MAX_PX = 4500;   // safety cap
+
+  const px = Math.min(MAX_PX, Math.floor(cssW * dpr * SUPERSAMPLE));
+  const py = Math.min(MAX_PX, Math.floor(cssH * dpr * SUPERSAMPLE));
+
+  // Never allow zero
+  if (px < 2 || py < 2) return;
 
   if (canvas.width !== px || canvas.height !== py){
     canvas.width = px;
@@ -556,13 +584,17 @@ function resizeCanvasToBox(){
       }
     } catch (_) {}
 
+fitStage();
+resizeCanvasToBox();
+
+requestAnimationFrame(() => {
+  fitStage();
+  resizeCanvasToBox();
+  requestAnimationFrame(() => {
     fitStage();
     resizeCanvasToBox();
-
-    requestAnimationFrame(() => {
-      fitStage();
-      resizeCanvasToBox();
-    });
+  });
+});
 
     reset();
 
