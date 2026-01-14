@@ -202,17 +202,28 @@
   }
 
   // Make internal canvas resolution match its displayed size (keeps pixels crisp)
-  function resizeCanvasToBox(){
-    const box = canvas.parentElement.getBoundingClientRect();
-    const dpr = Math.min(4, window.devicePixelRatio || 1);
+function resizeCanvasToBox(){
+  // Use layout size (not getBoundingClientRect) because Readymag may scale via transforms
+  const boxEl = canvas.parentElement;
+  const cssW = boxEl.clientWidth;
+  const cssH = boxEl.clientHeight;
 
-    const px = Math.floor(box.width * dpr);
-    const py = Math.floor(box.height * dpr);
+  // Render extra pixels for sharpness (supersampling)
+  const dpr = (window.devicePixelRatio || 1);
+  const SUPERSAMPLE = 2; // try 2 first. If still soft, try 3 (heavier)
 
-    if (canvas.width !== px || canvas.height !== py){
-      canvas.width = px;
-      canvas.height = py;
-      setCrisp();
+  // Cap to avoid insane GPU load
+  const MAX_PX = 5000;
+
+  const px = Math.min(MAX_PX, Math.floor(cssW * dpr * SUPERSAMPLE));
+  const py = Math.min(MAX_PX, Math.floor(cssH * dpr * SUPERSAMPLE));
+
+  if (canvas.width !== px || canvas.height !== py){
+    canvas.width = px;
+    canvas.height = py;
+    setCrisp();
+  }
+}
     }
   }
   window.addEventListener("resize", resizeCanvasToBox);
