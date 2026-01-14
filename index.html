@@ -2,88 +2,307 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Savy Snake</title>
+
+  <!-- Source Sans Pro -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
+
   <style>
-    html, body {
-      margin: 0;
-      height: 100%;
-      overflow: hidden;   /* prevents page scroll */
-      background: #000;
+    :root{
+      --gameSize: 900px;   /* change to 800px later if needed */
+      --gap: 48px;
+      --sideMin: 220px;
     }
 
-    /* This is the only “layout” layer */
-    #stage {
-      position: fixed;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      background: #000;
-      touch-action: none;
+    html,body{
+      margin:0;
+      padding:0;
+      width:100%;
+      height:100%;
+      background:#fff;
+      font-family:"Source Sans Pro", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      overflow:hidden;
     }
 
-    /* IMPORTANT: we do NOT change canvas drawing buffer here */
-    canvas {
-      display: block;
-      outline: none;
-      image-rendering: pixelated;
+    /* Stage = fixed design canvas that scales to iframe size */
+    #stage{
+      position:fixed;
+      left:0;
+      top:0;
+      transform-origin:0 0;
+      will-change:transform;
+    }
+
+    .savy-snake{
+      display:flex;
+      align-items:flex-start;
+      gap:var(--gap);
+    }
+
+    .gameBox{
+      width:var(--gameSize);
+      height:var(--gameSize);
+      background:#000;
+      border:6px solid #000;
+      box-sizing:border-box;
+      display:grid;
+      place-items:center;
+    }
+
+    canvas{
+      width:100%;
+      height:100%;
+      display:block;
+      image-rendering:pixelated;
+    }
+
+    .sideUI{
+      min-width:var(--sideMin);
+      padding-top:8px;
+      user-select:none;
+    }
+
+    .score,
+    .enterShop{
+      font-size:16px;
+      letter-spacing:0.5px;
+      text-transform:uppercase;
+      font-weight:400;
+    }
+
+    .enterShop{
+      margin-top:44px;
+      opacity:0;
+      pointer-events:none;
+      transition:opacity 180ms linear;
+      cursor:pointer;
+    }
+
+    .enterShop.unlocked{
+      opacity:1;
+      pointer-events:auto;
+    }
+
+    .enterShop.flash{
+      animation:flash 0.65s linear 1;
+    }
+
+    @keyframes flash{
+      0%{opacity:.15;}
+      12%{opacity:1;}
+      24%{opacity:.15;}
+      36%{opacity:1;}
+      48%{opacity:.15;}
+      60%{opacity:1;}
+      100%{opacity:1;}
     }
   </style>
 </head>
+
 <body>
-  <div id="stage">
-    <!-- Keep your original canvas id and original width/height attributes if you had them -->
-    <canvas id="game" width="800" height="800" tabindex="0"></canvas>
+
+<div id="stage">
+  <div class="savy-snake" id="module">
+    <div class="gameBox">
+      <canvas id="game"></canvas>
+    </div>
+
+    <div class="sideUI">
+      <div class="score" id="scoreText">SCORE: 00</div>
+      <div class="enterShop" id="enterShop">ENTER SHOP</div>
+    </div>
   </div>
+</div>
 
-  <script>
-    // ---------- SIZING ADAPTER (does not touch gameplay logic) ----------
-    (function () {
-      const stage = document.getElementById('stage');
-      const canvas = document.getElementById('game');
+<script>
+(() => {
+  /* SETTINGS */
+  const UNLOCK_SCORE = 22;
+  const GRID = 28;
+  const START_MS = 80;
+  const MIN_MS = 52;
+  const SPEEDUP_EVERY = 4;
+  const SPEEDUP_MS = 4;
+  const FOOD_SCALE = 1.6;
+  const LOGO_SRC = "./savy-logo.svg";
 
-      // Read the game’s “native” resolution from its attributes (or fallback)
-      function getBaseSize() {
-        const bw = canvas.width || 800;
-        const bh = canvas.height || 800;
-        return { bw, bh };
-      }
+  /* STAGE SCALING (fixes Readymag preview issues) */
+  function fitStage(){
+    const stage = document.getElementById("stage");
+    const mod = document.getElementById("module");
+    const w = mod.offsetWidth;
+    const h = mod.offsetHeight;
 
-      function fitCanvas() {
-        const { bw, bh } = getBaseSize();
-        const r = stage.getBoundingClientRect();
-        const scale = Math.min(r.width / bw, r.height / bh);
+    stage.style.width = w + "px";
+    stage.style.height = h + "px";
 
-        canvas.style.width  = Math.floor(bw * scale) + "px";
-        canvas.style.height = Math.floor(bh * scale) + "px";
-      }
+    const scale = Math.min(window.innerWidth / w, window.innerHeight / h);
+    stage.style.transform = `scale(${scale})`;
+    stage.style.left = ((window.innerWidth - w * scale) / 2) + "px";
+    stage.style.top  = ((window.innerHeight - h * scale) / 2) + "px";
+  }
 
-      // Keep it updated
-      if (window.ResizeObserver) {
-        new ResizeObserver(fitCanvas).observe(stage);
-      }
-      window.addEventListener('resize', fitCanvas);
-      fitCanvas();
+  window.addEventListener("resize", fitStage);
 
-      // Prevent arrow keys from scrolling the page (host can still try)
-      const block = new Set(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "]);
-      window.addEventListener("keydown", (e) => {
-        if (block.has(e.key)) e.preventDefault();
-      }, { passive: false });
+  /* CANVAS */
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
 
-      // Focus helps some embeds capture keys reliably
-      stage.addEventListener("pointerdown", () => canvas.focus(), { passive: true });
-      canvas.focus();
-    })();
-  </script>
+  function resizeCanvas(){
+    const box = canvas.parentElement.getBoundingClientRect();
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.floor(box.width * dpr);
+    canvas.height = Math.floor(box.height * dpr);
+    ctx.imageSmoothingEnabled = false;
+  }
 
-  <script>
-    // ---------- PASTE YOUR LAST-KNOWN-WORKING SNAKE GAME CODE BELOW ----------
-    // IMPORTANT RULES:
-    // 1) Do NOT change your internal coordinate math
-    // 2) Do NOT change canvas.width / canvas.height dynamically anymore
-    // 3) Let the adapter above handle sizing via CSS only
+  window.addEventListener("resize", resizeCanvas);
 
-    // ... your working snake JS goes here ...
-  </script>
+  /* UI */
+  const scoreText = document.getElementById("scoreText");
+  const enterShop = document.getElementById("enterShop");
+
+  function setScore(n){
+    scoreText.textContent = "SCORE: " + String(n).padStart(2,"0");
+  }
+
+  function unlock(){
+    if (!enterShop.classList.contains("unlocked")){
+      enterShop.classList.add("unlocked");
+      enterShop.classList.add("flash");
+    }
+  }
+
+  /* GAME */
+  const foodImg = new Image();
+  foodImg.src = LOGO_SRC;
+
+  let snake, dir, nextDir, food, score;
+  let tick = START_MS, acc = 0, last = 0;
+  let running = false, dead = false;
+
+  function reset(){
+    score = 0;
+    setScore(score);
+    tick = START_MS;
+    dead = false;
+    running = false;
+    snake = [];
+    const mid = Math.floor(GRID/2);
+    for(let i=0;i<4;i++) snake.push({x:mid-i,y:mid});
+    dir = nextDir = {x:1,y:0};
+    food = spawnFood();
+    enterShop.classList.remove("unlocked","flash");
+  }
+
+  function spawnFood(){
+    while(true){
+      const x = Math.floor(Math.random()*GRID);
+      const y = Math.floor(Math.random()*GRID);
+      if(!snake.some(s=>s.x===x&&s.y===y)) return {x,y};
+    }
+  }
+
+  function step(){
+    dir = nextDir;
+    const head = snake[0];
+    const nx = head.x + dir.x;
+    const ny = head.y + dir.y;
+
+    if(nx<0||ny<0||nx>=GRID||ny>=GRID||
+       snake.some((s,i)=>i&&s.x===nx&&s.y===ny)){
+      dead=true; running=false; return;
+    }
+
+    snake.unshift({x:nx,y:ny});
+
+    if(nx===food.x&&ny===food.y){
+      score++;
+      setScore(score);
+      if(score % SPEEDUP_EVERY === 0)
+        tick = Math.max(MIN_MS, tick - SPEEDUP_MS);
+      if(score>=UNLOCK_SCORE) unlock();
+      food = spawnFood();
+    } else snake.pop();
+  }
+
+  function draw(){
+    ctx.fillStyle="#000";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    const cs = Math.floor(canvas.width / GRID);
+    ctx.fillStyle="#fff";
+    snake.forEach(s=>{
+      ctx.fillRect(s.x*cs+1,s.y*cs+1,cs-2,cs-2);
+    });
+
+    if(foodImg.complete){
+      const iw = foodImg.naturalWidth;
+      const ih = foodImg.naturalHeight;
+      const target = cs * FOOD_SCALE;
+      const scale = Math.min(target/iw,target/ih);
+      const w = iw*scale;
+      const h = ih*scale;
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(
+        foodImg,
+        food.x*cs+(cs-w)/2,
+        food.y*cs+(cs-h)/2,
+        w,h
+      );
+      ctx.imageSmoothingEnabled = false;
+    }
+
+    if(dead){
+      ctx.fillStyle="rgba(0,0,0,.35)";
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle="#fff";
+      ctx.textAlign="center";
+      ctx.textBaseline="middle";
+      ctx.font=`${canvas.width*0.05}px "Source Sans Pro"`;
+      ctx.fillText("RESTART",canvas.width/2,canvas.height/2);
+    }
+  }
+
+  function loop(t){
+    if(!last) last=t;
+    acc += t-last;
+    last=t;
+    while(acc>=tick && running && !dead){
+      step(); acc-=tick;
+    }
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  function setDir(x,y){
+    if(x===-dir.x&&y===-dir.y) return;
+    nextDir={x,y};
+    if(!running&&!dead) running=true;
+  }
+
+  window.addEventListener("keydown",e=>{
+    if(e.key==="ArrowUp")setDir(0,-1);
+    if(e.key==="ArrowDown")setDir(0,1);
+    if(e.key==="ArrowLeft")setDir(-1,0);
+    if(e.key==="ArrowRight")setDir(1,0);
+    if(e.key==="r"){reset();running=true;}
+  });
+
+  async function init(){
+    await document.fonts.load('600 20px "Source Sans Pro"');
+    fitStage();
+    resizeCanvas();
+    reset();
+    requestAnimationFrame(loop);
+  }
+
+  init();
+})();
+</script>
+
 </body>
 </html>
