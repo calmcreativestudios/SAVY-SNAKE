@@ -5,282 +5,140 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Game</title>
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      overflow: hidden; /* no page scroll */
-      background: #000;
-    }
-
-    #wrap {
-      position: fixed;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      background: #000;
-      touch-action: none; /* blocks touch scrolling */
-    }
-
-    canvas {
-      display: block;
-      image-rendering: pixelated;
-      outline: none;
-    }
-
-    #hud {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      color: #fff;
-    }
-
+    html, body { margin:0; padding:0; height:100%; overflow:hidden; background:#000; }
+    #wrap { position:fixed; inset:0; display:grid; place-items:center; background:#000; touch-action:none; }
+    canvas { display:block; image-rendering:pixelated; outline:none; }
+    #hud { position:fixed; inset:0; pointer-events:none; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:#fff; }
     #msg {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      text-align: center;
-      font-weight: 600;
-      line-height: 1.25;
-      opacity: 0;
-      transition: opacity 140ms ease;
-      white-space: pre-line;
+      position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+      text-align:center; font-weight:700; line-height:1.25;
+      opacity:0; transition:opacity 140ms ease; white-space:pre-line;
     }
-
-    #msg.show { opacity: 1; }
-
-    #score {
-      position: absolute;
-      left: 12px;
-      top: 10px;
-      font-size: 14px;
-      opacity: 0.9;
-    }
+    #msg.show { opacity:1; }
+    #score { position:absolute; left:12px; top:10px; font-size:14px; opacity:.9; }
   </style>
 </head>
 <body>
   <div id="wrap">
     <canvas id="c" tabindex="0"></canvas>
   </div>
-
   <div id="hud">
     <div id="score"></div>
     <div id="msg"></div>
   </div>
 
   <script>
-    /**
-     * Full drop-in game shell:
-     * - fits canvas to container
-     * - prevents page scrolling with game keys
-     * - restart via Spacebar (and optional R)
-     * - tap/click to restart on mobile/desktop when game over
-     */
-
-    const wrap = document.getElementById('wrap');
-    const canvas = document.getElementById('c');
-    const ctx = canvas.getContext('2d', { alpha: false });
-
-    const scoreEl = document.getElementById('score');
-    const msgEl = document.getElementById('msg');
-
-    // ---------- Input (prevents scroll) ----------
-    const keys = new Set();
-
-    const BLOCK_KEYS = new Set([
-      "ArrowUp","ArrowDown","ArrowLeft","ArrowRight",
-      " ","Spacebar","Space",
-      "w","a","s","d","W","A","S","D"
-    ]);
-
-    function isRestartKey(k) {
-      // Space variants + optional R
-      return (
-        k === ' ' || k === 'Space' || k === 'Spacebar' ||
-        k === 'r' || k === 'R'
-      );
-    }
-
-    function onKeyDown(e) {
-      const k = e.key;
-
-      // Prevent browser scroll / page actions
-      if (BLOCK_KEYS.has(k) || BLOCK_KEYS.has(String(k).toLowerCase())) {
-        e.preventDefault();
+    (() => {
+      // ---- HARD RESET if this embed was injected multiple times ----
+      // Hosts often re-run scripts on preview/publish without fully unloading.
+      if (window.__EMBED_GAME_CLEANUP__) {
+        try { window.__EMBED_GAME_CLEANUP__(); } catch (_) {}
       }
 
-      keys.add(k);
+      const wrap = document.getElementById('wrap');
+      const canvas = document.getElementById('c');
+      const ctx = canvas.getContext('2d', { alpha: false });
 
-      // Restart on Space/R when game over
-      if (state.gameOver && isRestartKey(k)) {
-        restart();
-      }
-    }
+      const scoreEl = document.getElementById('score');
+      const msgEl = document.getElementById('msg');
 
-    function onKeyUp(e) {
-      const k = e.key;
-      if (BLOCK_KEYS.has(k) || BLOCK_KEYS.has(String(k).toLowerCase())) {
-        e.preventDefault();
-      }
-      keys.delete(k);
-    }
+      const BASE_W = 800, BASE_H = 800;
 
-    // Attach to window so iframe still catches input
-    window.addEventListener('keydown', onKeyDown, { passive: false });
-    window.addEventListener('keyup', onKeyUp, { passive: false });
-
-    // Block scrolling via wheel/touch within iframe
-    window.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
-    window.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
-
-    // Focus canvas to improve key capture in some hosts
-    canvas.addEventListener('pointerdown', () => canvas.focus());
-
-    // Tap/click anywhere on the game to restart when game over
-    wrap.addEventListener('pointerdown', () => {
-      if (state.gameOver) restart();
-    }, { passive: true });
-
-    // ---------- Resize / Fit ----------
-    const BASE_W = 800;
-    const BASE_H = 800;
-
-    function resize() {
-      const rect = wrap.getBoundingClientRect();
-      const scale = Math.min(rect.width / BASE_W, rect.height / BASE_H);
-
-      const cssW = Math.floor(BASE_W * scale);
-      const cssH = Math.floor(BASE_H * scale);
-
-      canvas.width = BASE_W;
-      canvas.height = BASE_H;
-
-      canvas.style.width = cssW + 'px';
-      canvas.style.height = cssH + 'px';
-    }
-
-    new ResizeObserver(resize).observe(wrap);
-    resize();
-
-    // ---------- Game State ----------
-    const state = {
-      running: true,
-      gameOver: false,
-      score: 0
-    };
-
-    // Demo game object (replace with your real game logic if needed)
-    function Game() {
-      return {
-        x: BASE_W / 2,
-        y: BASE_H / 2,
-        vx: 0,
-        vy: 0,
-        size: 18,
-        speed: 0.9
+      // ---- State ----
+      const state = {
+        started: false,
+        running: false,
+        gameOver: false,
+        score: 0
       };
-    }
 
-    let game = Game();
-
-    function restart() {
-      state.running = true;
-      state.gameOver = false;
-      state.score = 0;
-      keys.clear();
-      game = Game();
-      hideMessage();
-    }
-
-    function gameOver() {
-      state.running = false;
-      state.gameOver = true;
-      showMessage("Restart\nPress Space or Tap to Restart");
-    }
-
-    function showMessage(text) {
-      msgEl.textContent = text;
-      msgEl.classList.add('show');
-    }
-
-    function hideMessage() {
-      msgEl.classList.remove('show');
-      msgEl.textContent = '';
-    }
-
-    // ---------- Loop ----------
-    let last = performance.now();
-
-    function tick(now) {
-      const dt = Math.min(32, now - last);
-      last = now;
-
-      update(dt / 16.6667);
-      render();
-
-      requestAnimationFrame(tick);
-    }
-
-    function update(step) {
-      scoreEl.textContent = `Score: ${state.score}`;
-      if (!state.running) return;
-
-      const up = keys.has('ArrowUp') || keys.has('w') || keys.has('W');
-      const down = keys.has('ArrowDown') || keys.has('s') || keys.has('S');
-      const left = keys.has('ArrowLeft') || keys.has('a') || keys.has('A');
-      const right = keys.has('ArrowRight') || keys.has('d') || keys.has('D');
-
-      game.vx = 0;
-      game.vy = 0;
-      if (up) game.vy -= game.speed;
-      if (down) game.vy += game.speed;
-      if (left) game.vx -= game.speed;
-      if (right) game.vx += game.speed;
-
-      game.x += game.vx * 6 * step;
-      game.y += game.vy * 6 * step;
-
-      state.score += (Math.abs(game.vx) + Math.abs(game.vy)) > 0 ? 1 : 0;
-
-      // Demo death condition
-      if (
-        game.x < game.size ||
-        game.x > BASE_W - game.size ||
-        game.y < game.size ||
-        game.y > BASE_H - game.size
-      ) {
-        gameOver();
+      // ---- UI ----
+      function showMessage(text) {
+        msgEl.textContent = text;
+        msgEl.classList.add('show');
       }
-    }
-
-    function render() {
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, BASE_W, BASE_H);
-
-      ctx.strokeStyle = '#222';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(1, 1, BASE_W - 2, BASE_H - 2);
-
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(
-        Math.floor(game.x - game.size / 2),
-        Math.floor(game.y - game.size / 2),
-        game.size,
-        game.size
-      );
-
-      if (state.gameOver) {
-        ctx.fillStyle = 'rgba(0,0,0,0.45)';
-        ctx.fillRect(0, 0, BASE_W, BASE_H);
+      function hideMessage() {
+        msgEl.classList.remove('show');
+        msgEl.textContent = '';
       }
-    }
 
-    requestAnimationFrame(tick);
+      // ---- Game object (demo) ----
+      function Game() {
+        return {
+          x: BASE_W / 2,
+          y: BASE_H / 2,
+          vx: 0,
+          vy: 0,
+          size: 18,
+          speed: 1.0
+        };
+      }
+      let game = Game();
 
-    // Extra focus helper for some embeds
-    window.addEventListener('pointerdown', () => canvas.focus(), { passive: true });
-  </script>
-</body>
-</html>
+      function startGame() {
+        if (state.started) return;
+        state.started = true;
+        state.running = true;
+        hideMessage();
+      }
+
+      function restart() {
+        state.started = true;      // restart implies started
+        state.running = true;
+        state.gameOver = false;
+        state.score = 0;
+        keys.clear();
+        game = Game();
+        hideMessage();
+      }
+
+      function gameOver() {
+        state.running = false;
+        state.gameOver = true;
+        showMessage("Restart\nPress Space or Tap to Restart");
+      }
+
+      // ---- Resize / Fit ----
+      function resize() {
+        const rect = wrap.getBoundingClientRect();
+        const scale = Math.min(rect.width / BASE_W, rect.height / BASE_H);
+
+        const cssW = Math.floor(BASE_W * scale);
+        const cssH = Math.floor(BASE_H * scale);
+
+        canvas.width = BASE_W;
+        canvas.height = BASE_H;
+
+        canvas.style.width = cssW + 'px';
+        canvas.style.height = cssH + 'px';
+      }
+
+      const ro = new ResizeObserver(resize);
+      ro.observe(wrap);
+      resize();
+
+      // ---- Input (capture + stopPropagation so host can’t steal keys) ----
+      const keys = new Set();
+      const BLOCK_KEYS = new Set([
+        "ArrowUp","ArrowDown","ArrowLeft","ArrowRight",
+        " ","Space","Spacebar",
+        "w","a","s","d","W","A","S","D"
+      ]);
+
+      function isRestartKey(e) {
+        // Prefer e.code, fall back to e.key
+        const code = e.code || "";
+        const key = e.key || "";
+        return (
+          code === "Space" || key === " " || key === "Space" || key === "Spacebar" ||
+          code === "KeyR" || key === "r" || key === "R"
+        );
+      }
+
+      function isMovementKey(e) {
+        const k = e.key || "";
+        const c = e.code || "";
+        return (
+          k.startsWith("Arrow") ||
+          c === "KeyW" || c === "KeyA" || c === "KeyS" || c === "KeyD" ||
+          k === "w" ||
