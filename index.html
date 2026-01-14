@@ -3,142 +3,87 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Game</title>
   <style>
-    html, body { margin:0; padding:0; height:100%; overflow:hidden; background:#000; }
-    #wrap { position:fixed; inset:0; display:grid; place-items:center; background:#000; touch-action:none; }
-    canvas { display:block; image-rendering:pixelated; outline:none; }
-    #hud { position:fixed; inset:0; pointer-events:none; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:#fff; }
-    #msg {
-      position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
-      text-align:center; font-weight:700; line-height:1.25;
-      opacity:0; transition:opacity 140ms ease; white-space:pre-line;
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;   /* prevents page scroll */
+      background: #000;
     }
-    #msg.show { opacity:1; }
-    #score { position:absolute; left:12px; top:10px; font-size:14px; opacity:.9; }
+
+    /* This is the only “layout” layer */
+    #stage {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: #000;
+      touch-action: none;
+    }
+
+    /* IMPORTANT: we do NOT change canvas drawing buffer here */
+    canvas {
+      display: block;
+      outline: none;
+      image-rendering: pixelated;
+    }
   </style>
 </head>
 <body>
-  <div id="wrap">
-    <canvas id="c" tabindex="0"></canvas>
-  </div>
-  <div id="hud">
-    <div id="score"></div>
-    <div id="msg"></div>
+  <div id="stage">
+    <!-- Keep your original canvas id and original width/height attributes if you had them -->
+    <canvas id="game" width="800" height="800" tabindex="0"></canvas>
   </div>
 
   <script>
-    (() => {
-      // ---- HARD RESET if this embed was injected multiple times ----
-      // Hosts often re-run scripts on preview/publish without fully unloading.
-      if (window.__EMBED_GAME_CLEANUP__) {
-        try { window.__EMBED_GAME_CLEANUP__(); } catch (_) {}
+    // ---------- SIZING ADAPTER (does not touch gameplay logic) ----------
+    (function () {
+      const stage = document.getElementById('stage');
+      const canvas = document.getElementById('game');
+
+      // Read the game’s “native” resolution from its attributes (or fallback)
+      function getBaseSize() {
+        const bw = canvas.width || 800;
+        const bh = canvas.height || 800;
+        return { bw, bh };
       }
 
-      const wrap = document.getElementById('wrap');
-      const canvas = document.getElementById('c');
-      const ctx = canvas.getContext('2d', { alpha: false });
+      function fitCanvas() {
+        const { bw, bh } = getBaseSize();
+        const r = stage.getBoundingClientRect();
+        const scale = Math.min(r.width / bw, r.height / bh);
 
-      const scoreEl = document.getElementById('score');
-      const msgEl = document.getElementById('msg');
-
-      const BASE_W = 800, BASE_H = 800;
-
-      // ---- State ----
-      const state = {
-        started: false,
-        running: false,
-        gameOver: false,
-        score: 0
-      };
-
-      // ---- UI ----
-      function showMessage(text) {
-        msgEl.textContent = text;
-        msgEl.classList.add('show');
-      }
-      function hideMessage() {
-        msgEl.classList.remove('show');
-        msgEl.textContent = '';
+        canvas.style.width  = Math.floor(bw * scale) + "px";
+        canvas.style.height = Math.floor(bh * scale) + "px";
       }
 
-      // ---- Game object (demo) ----
-      function Game() {
-        return {
-          x: BASE_W / 2,
-          y: BASE_H / 2,
-          vx: 0,
-          vy: 0,
-          size: 18,
-          speed: 1.0
-        };
+      // Keep it updated
+      if (window.ResizeObserver) {
+        new ResizeObserver(fitCanvas).observe(stage);
       }
-      let game = Game();
+      window.addEventListener('resize', fitCanvas);
+      fitCanvas();
 
-      function startGame() {
-        if (state.started) return;
-        state.started = true;
-        state.running = true;
-        hideMessage();
-      }
+      // Prevent arrow keys from scrolling the page (host can still try)
+      const block = new Set(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "]);
+      window.addEventListener("keydown", (e) => {
+        if (block.has(e.key)) e.preventDefault();
+      }, { passive: false });
 
-      function restart() {
-        state.started = true;      // restart implies started
-        state.running = true;
-        state.gameOver = false;
-        state.score = 0;
-        keys.clear();
-        game = Game();
-        hideMessage();
-      }
+      // Focus helps some embeds capture keys reliably
+      stage.addEventListener("pointerdown", () => canvas.focus(), { passive: true });
+      canvas.focus();
+    })();
+  </script>
 
-      function gameOver() {
-        state.running = false;
-        state.gameOver = true;
-        showMessage("Restart\nPress Space or Tap to Restart");
-      }
+  <script>
+    // ---------- PASTE YOUR LAST-KNOWN-WORKING SNAKE GAME CODE BELOW ----------
+    // IMPORTANT RULES:
+    // 1) Do NOT change your internal coordinate math
+    // 2) Do NOT change canvas.width / canvas.height dynamically anymore
+    // 3) Let the adapter above handle sizing via CSS only
 
-      // ---- Resize / Fit ----
-      function resize() {
-        const rect = wrap.getBoundingClientRect();
-        const scale = Math.min(rect.width / BASE_W, rect.height / BASE_H);
-
-        const cssW = Math.floor(BASE_W * scale);
-        const cssH = Math.floor(BASE_H * scale);
-
-        canvas.width = BASE_W;
-        canvas.height = BASE_H;
-
-        canvas.style.width = cssW + 'px';
-        canvas.style.height = cssH + 'px';
-      }
-
-      const ro = new ResizeObserver(resize);
-      ro.observe(wrap);
-      resize();
-
-      // ---- Input (capture + stopPropagation so host can’t steal keys) ----
-      const keys = new Set();
-      const BLOCK_KEYS = new Set([
-        "ArrowUp","ArrowDown","ArrowLeft","ArrowRight",
-        " ","Space","Spacebar",
-        "w","a","s","d","W","A","S","D"
-      ]);
-
-      function isRestartKey(e) {
-        // Prefer e.code, fall back to e.key
-        const code = e.code || "";
-        const key = e.key || "";
-        return (
-          code === "Space" || key === " " || key === "Space" || key === "Spacebar" ||
-          code === "KeyR" || key === "r" || key === "R"
-        );
-      }
-
-      function isMovementKey(e) {
-        const k = e.key || "";
-        const c = e.code || "";
-        return (
-          k.startsWith("Arrow") ||
-          c === "KeyW" || c === "KeyA" || c === "KeyS" || c === "KeyD" ||
-          k === "w" ||
+    // ... your working snake JS goes here ...
+  </script>
+</body>
+</html>
