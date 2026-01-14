@@ -144,6 +144,55 @@
   const FOOD_SCALE_TO_CELL = 2.6; // was 1.6
 
   const LOGO_SRC = "./savy-logo.svg";
+    /***********************
+   * SOUND
+   ***********************/
+  const EAT_SFX_SRC = "./eat.mp3";
+  const UNLOCK_SFX_SRC = "./unlock.mp3";
+
+  const eatSfx = new Audio(EAT_SFX_SRC);
+  const unlockSfx = new Audio(UNLOCK_SFX_SRC);
+
+  eatSfx.preload = "auto";
+  unlockSfx.preload = "auto";
+
+  // optional levels
+  eatSfx.volume = 1.0;
+  unlockSfx.volume = 1.0;
+
+  // Browser audio policy: arm once on first user input
+  let audioArmed = false;
+  function armAudioOnce(){
+    if (audioArmed) return;
+    audioArmed = true;
+
+    // try to unlock audio playback without audible output
+    try {
+      eatSfx.muted = true;
+      const p = eatSfx.play();
+      if (p && typeof p.then === "function") {
+        p.then(() => {
+          eatSfx.pause();
+          eatSfx.currentTime = 0;
+          eatSfx.muted = false;
+        }).catch(() => {
+          eatSfx.muted = false;
+        });
+      } else {
+        eatSfx.pause();
+        eatSfx.currentTime = 0;
+        eatSfx.muted = false;
+      }
+    } catch(e) {}
+  }
+
+  function playSfx(a){
+    try{
+      a.currentTime = 0;
+      const p = a.play();
+      if (p && typeof p.catch === "function") p.catch(() => {});
+    } catch(e) {}
+  }
 
   /***********************
    * STAGE AUTO-FIT
