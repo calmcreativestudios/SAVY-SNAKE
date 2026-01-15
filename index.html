@@ -149,16 +149,26 @@
    ***********************/
   const EAT_SFX_SRC = "./eat.mp3";
   const UNLOCK_SFX_SRC = "./unlock.mp3";
+  const START_SFX_SRC = "./START.mp3";
+const LOSE_SFX_SRC  = "./LOSE.mp3";
+
 
   const eatSfx = new Audio(EAT_SFX_SRC);
   const unlockSfx = new Audio(UNLOCK_SFX_SRC);
+  const startSfx = new Audio(START_SFX_SRC);
+const loseSfx  = new Audio(LOSE_SFX_SRC);
+
 
   eatSfx.preload = "auto";
-  unlockSfx.preload = "auto";
+unlockSfx.preload = "auto";
+startSfx.preload = "auto";
+loseSfx.preload  = "auto";
 
-  // optional levels
- eatSfx.volume = 0.5;
+// optional levels
+eatSfx.volume = 0.5;
 unlockSfx.volume = 0.5;
+startSfx.volume = 0.5;
+loseSfx.volume  = 0.5;
 
   // Browser audio policy: arm once on first user input
   let audioArmed = false;
@@ -340,6 +350,8 @@ unlockSfx.volume = 0.5;
     nextDir = {x:1,y:0};
     food = spawnFood();
     enterShop.classList.remove("unlocked","flash");
+
+    playSfx(startSfx);
   }
 
   function spawnFood(){
@@ -360,10 +372,16 @@ unlockSfx.volume = 0.5;
     const ny = head.y + dir.y;
 
     if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID){
-      dead = true; return;
+  dead = true;
+  playSfx(loseSfx);
+  return;
+}
     }
-    if (snake.some((s, idx) => idx!==0 && s.x===nx && s.y===ny)){
-      dead = true; return;
+  if (snake.some((s, idx) => idx!==0 && s.x===nx && s.y===ny)){
+  dead = true;
+  playSfx(loseSfx);
+  return;
+}
     }
 
     snake.unshift({x:nx, y:ny});
