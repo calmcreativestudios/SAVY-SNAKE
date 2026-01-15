@@ -376,13 +376,11 @@ loseSfx.volume  = 0.5;
   playSfx(loseSfx);
   return;
 }
-    }
   if (snake.some((s, idx) => idx!==0 && s.x===nx && s.y===ny)){
   dead = true;
   playSfx(loseSfx);
   return;
 }
-    }
 
     snake.unshift({x:nx, y:ny});
 
