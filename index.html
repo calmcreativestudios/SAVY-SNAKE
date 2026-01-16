@@ -22,6 +22,49 @@
       --gap: 48px;
       --sideMin: 220px;
     }
+/* =========================
+   DESKTOP LAYOUT (DEFAULT)
+   ========================= */
+
+#savySnakeModule {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.gameBox {
+  flex: 0 0 auto;
+}
+
+/* game canvas behaviour on desktop */
+#game {
+  width: 100%;
+  max-width: 900px;
+  height: auto;
+  display: block;
+}
+
+/* score + password */
+.sideUI {
+  width: 260px;
+  flex-shrink: 0;
+}
+
+/* =========================
+   SMALL DESKTOP / NARROW PREVIEW
+   ========================= */
+@media (max-width: 1200px) {
+  #savySnakeModule {
+    flex-direction: column;
+  }
+
+  .sideUI {
+    width: 100%;
+  }
+}
 
     html,body{
       margin:0; padding:0;
