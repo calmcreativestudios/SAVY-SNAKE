@@ -108,6 +108,39 @@
       60%{opacity:1;}
       100%{opacity:1;}
     }
+    /* === LAYOUT WRAPPER === */
+#savySnakeModule {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+/* game area */
+.gameBox {
+  flex: 1;
+}
+
+/* score + password */
+.sideUI {
+  width: 260px;
+}
+
+/* canvas responsive fix */
+#game {
+  max-width: 100%;
+  height: auto;
+}
+
+/* === MOBILE === */
+@media (max-width: 768px) {
+  #savySnakeModule {
+    flex-direction: column;
+  }
+
+  .sideUI {
+    width: 100%;
+  }
+}
   </style>
 </head>
 <body>
