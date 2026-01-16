@@ -354,7 +354,9 @@ loseSfx.volume  = 0.5;
       const r = boxEl.getBoundingClientRect();
       cssW = Math.round(r.width);
       cssH = Math.round(r.height);
+      
     }
+    
 
     if (cssW < 2 || cssH < 2) return;
 
@@ -384,8 +386,23 @@ loseSfx.volume  = 0.5;
   function setScoreUI(n){
     const s = String(n).padStart(2, "0");
     scoreText.textContent = `SCORE: ${s}`;
+    
   }
+// Fix Readymag first-load cropping: force a re-measure after layout/fonts settle
+function settleLayout() {
+  try { resizeCanvasToBox(); } catch (e) {}
+}
 
+// run after initial paint
+requestAnimationFrame(settleLayout);
+// run again shortly after (fonts/iframe sizing often finishes late)
+setTimeout(settleLayout, 100);
+setTimeout(settleLayout, 300);
+
+// also rerun when fonts finish loading (if supported)
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(settleLayout);
+}
   function unlockUI(){
     if (!enterShop.classList.contains("unlocked")){
       enterShop.classList.add("unlocked");
