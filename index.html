@@ -130,6 +130,14 @@
   max-width: 100%;
   height: auto;
 }
+/* prevent page scroll on touch */
+html, body {
+  overscroll-behavior: none;
+}
+
+#game {
+  touch-action: none;
+}
 
 /* === MOBILE === */
 @media (max-width: 768px) {
@@ -267,6 +275,14 @@ loseSfx.volume  = 0.5;
    ***********************/
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d", { alpha:true });
+// prevent page scroll when swiping on the canvas (mobile)
+["touchstart", "touchmove", "touchend"].forEach((evt) => {
+  canvas.addEventListener(
+    evt,
+    (e) => e.preventDefault(),
+    { passive: false }
+  );
+});
 
   // Keep snake crisp after any resize
   function setCrisp(){
