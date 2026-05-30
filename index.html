@@ -78,20 +78,11 @@
       flex-shrink:0;
     }
 
-    .score,
-    .enterShop{
+    .score{
       font-size:16px;
       letter-spacing:0.5px;
       text-transform:uppercase;
       font-weight:400;
-    }
-
-    .enterShop{
-      margin-top:44px;
-      display:inline-block;
-      color:#000;
-      text-decoration:none;
-      cursor:pointer;
     }
 
     #game{
@@ -110,8 +101,7 @@
     }
 
     @media (max-width:768px){
-      #scoreText,
-      #enterShop{
+      #scoreText{
         font-size:16px;
         line-height:1.4;
       }
@@ -129,7 +119,6 @@
 
       <div class="sideUI">
         <div class="score" id="scoreText">SCORE: 00</div>
-        <a class="enterShop" id="enterShop" href="/shop">ENTER STORE</a>
       </div>
     </div>
   </div>
@@ -418,7 +407,7 @@
       ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2);
 
       ctx.font = `${Math.floor(canvas.width * 0.028)}px "Source Sans Pro", Arial`;
-      ctx.fillText("CLICK TO TRY AGAIN", canvas.width / 2, canvas.height / 2 + Math.floor(canvas.width * 0.07));
+      ctx.fillText("CLICK TO PLAY AGAIN", canvas.width / 2, canvas.height / 2 + Math.floor(canvas.width * 0.07));
 
       ctx.restore();
     }
