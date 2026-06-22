@@ -19,7 +19,7 @@
       width:100%;
       height:100%;
       background:transparent;
-      overflow:hidden;
+      overflow:visible;
       font-family:"SavyGameFont", Arial, Helvetica, sans-serif;
     }
 
@@ -30,7 +30,7 @@
       height:100%;
       position:relative;
       background:transparent;
-      overflow:hidden;
+      overflow:visible;
     }
 
     canvas{
@@ -72,6 +72,24 @@
       text-transform:uppercase;
     }
 
+    #hitLayer{
+      position:absolute;
+      inset:0;
+      overflow:visible;
+      pointer-events:none;
+      z-index:9999;
+    }
+
+    .hitZone{
+      position:absolute;
+      background:rgba(255,0,0,.55);
+      border:2px solid red;
+      border-radius:999px;
+      pointer-events:auto;
+      cursor:pointer;
+      box-sizing:border-box;
+    }
+
     @keyframes savyBoot{
       0%{opacity:0;}
       20%{opacity:1;}
@@ -92,6 +110,18 @@
       <div id="bootScreen">
         <img id="bootLogo" alt="SAVY">
         <div id="bootFallback">SAVY</div>
+      </div>
+
+      <div id="hitLayer">
+        <div class="hitZone" data-action="pause"   style="left:-20%; top:125%; width:26%; height:22%;"></div>
+        <div class="hitZone" data-action="up"      style="left:39%; top:153%; width:24%; height:20%;"></div>
+        <div class="hitZone" data-action="sound"   style="left:94%; top:153%; width:26%; height:20%;"></div>
+
+        <div class="hitZone" data-action="left"    style="left:-13%; top:181%; width:26%; height:20%;"></div>
+        <div class="hitZone" data-action="restart" style="left:35%; top:181%; width:30%; height:20%;"></div>
+        <div class="hitZone" data-action="right"   style="left:88%; top:181%; width:26%; height:20%;"></div>
+
+        <div class="hitZone" data-action="down"    style="left:39%; top:210%; width:24%; height:20%;"></div>
       </div>
     </div>
   </div>
@@ -293,13 +323,7 @@
 
     ctx.strokeStyle = "#000";
     ctx.lineWidth = Math.max(8, Math.min(cellW, cellH) * 0.22);
-
-    ctx.strokeRect(
-      0,
-      0,
-      playW,
-      playH
-    );
+    ctx.strokeRect(0, 0, playW, playH);
 
     ctx.fillStyle = "#000";
 
@@ -314,12 +338,9 @@
       );
     }
 
-    const fx = food.x * cellW;
-    const fy = food.y * cellH;
-
     ctx.fillRect(
-      fx + cellW * 0.25,
-      fy + cellH * 0.25,
+      food.x * cellW + cellW * 0.25,
+      food.y * cellH + cellH * 0.25,
       cellW * 0.5,
       cellH * 0.5
     );
@@ -418,27 +439,17 @@
     isSoundOn: () => soundOn
   };
 
-  window.addEventListener("storage", (e) => {
-    if (e.key !== "SAVY_SNAKE_ACTION") return;
-    if (!e.newValue) return;
+  document.querySelectorAll(".hitZone").forEach(zone => {
+    zone.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
 
-    let data;
+      const action = zone.dataset.action;
 
-    try {
-      data = JSON.parse(e.newValue);
-    } catch (_) {
-      return;
-    }
-
-    const action = data.action;
-
-    if (
-      action &&
-      window.SavySnake &&
-      typeof window.SavySnake[action] === "function"
-    ) {
-      window.SavySnake[action]();
-    }
+      if (action && window.SavySnake[action]){
+        window.SavySnake[action]();
+      }
+    });
   });
 
   window.addEventListener("keydown", (e) => {
