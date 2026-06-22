@@ -39,10 +39,10 @@ html,body{
 
 #game{
   position:absolute;
-  left:14.3%;
-  top:28.5%;
-  width:71.4%;
-  height:22.9%;
+  left:16.23%;
+  top:26.62%;
+  width:66.78%;
+  height:20.46%;
   z-index:2;
   background:transparent;
   pointer-events:none;
@@ -53,8 +53,26 @@ html,body{
   z-index:5;
   background:rgba(255,0,0,.45);
   border:1px solid red;
-  border-radius:999px;
   cursor:pointer;
+  box-sizing:border-box;
+}
+
+.zone.oval{
+  border-radius:999px;
+}
+
+.zone.pause{
+  clip-path:polygon(
+    0% 28%,
+    26% 0%,
+    38% 5%,
+    52% 18%,
+    70% 31%,
+    100% 44%,
+    83% 100%,
+    54% 76%,
+    28% 50%
+  );
 }
 </style>
 </head>
@@ -65,16 +83,26 @@ html,body{
   <img id="phone" alt="SAVY PHONE">
   <canvas id="game"></canvas>
 
-  <div class="zone" data-action="pause"   style="left:15.3%; top:58.5%; width:19.5%; height:8.5%;"></div>
+  <div class="zone pause" data-action="pause"
+    style="left:15.37%; top:58.46%; width:19.77%; height:8.43%;"></div>
 
-  <div class="zone" data-action="up"      style="left:38.1%; top:71.0%; width:23.2%; height:5.2%;"></div>
-  <div class="zone" data-action="sound"   style="left:68.8%; top:69.9%; width:22.6%; height:6.1%;"></div>
+  <div class="zone oval" data-action="up"
+    style="left:38.08%; top:70.97%; width:23.16%; height:5.15%;"></div>
 
-  <div class="zone" data-action="left"    style="left:11.4%; top:77.5%; width:21.3%; height:5.4%;"></div>
-  <div class="zone" data-action="restart" style="left:38.1%; top:78.6%; width:23.2%; height:5.2%;"></div>
-  <div class="zone" data-action="right"   style="left:67.4%; top:77.5%; width:21.3%; height:5.4%;"></div>
+  <div class="zone oval" data-action="sound"
+    style="left:68.44%; top:69.90%; width:23.36%; height:6.78%; transform:rotate(-21.2deg);"></div>
 
-  <div class="zone" data-action="down"    style="left:38.1%; top:86.2%; width:23.2%; height:5.2%;"></div>
+  <div class="zone oval" data-action="left"
+    style="left:11.27%; top:77.62%; width:21.29%; height:5.24%; transform:rotate(16.7deg);"></div>
+
+  <div class="zone oval" data-action="restart"
+    style="left:38.08%; top:78.61%; width:23.16%; height:5.15%;"></div>
+
+  <div class="zone oval" data-action="right"
+    style="left:67.53%; top:77.62%; width:21.29%; height:5.24%; transform:rotate(-16.7deg);"></div>
+
+  <div class="zone oval" data-action="down"
+    style="left:38.08%; top:86.17%; width:23.16%; height:5.15%;"></div>
 </div>
 
 <script>
