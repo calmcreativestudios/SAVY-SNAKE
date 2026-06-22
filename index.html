@@ -1,130 +1,79 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Savy Snake Module</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Savy Snake Phone</title>
 
-  <style>
-    @font-face{
-      font-family:"SavyGameFont";
-      src:url("./SFTSchriftedRoundTRIAL-CompBlackIt.ttf") format("truetype");
-      font-weight:900;
-      font-style:italic;
-    }
+<style>
+@font-face{
+  font-family:"SavyGameFont";
+  src:url("./SFTSchriftedRoundTRIAL-CompBlackIt.ttf") format("truetype");
+  font-weight:900;
+  font-style:italic;
+}
 
-    html,body{
-      margin:0;
-      padding:0;
-      width:100%;
-      height:100%;
-      background:transparent;
-      overflow:visible;
-      font-family:"SavyGameFont", Arial, Helvetica, sans-serif;
-    }
+html,body{
+  margin:0;
+  width:100%;
+  height:100%;
+  background:transparent;
+  overflow:hidden;
+}
 
-    #stage,
-    #savySnakeModule,
-    .gameBox{
-      width:100%;
-      height:100%;
-      position:relative;
-      background:transparent;
-      overflow:visible;
-    }
+#phoneWrap{
+  position:relative;
+  width:100%;
+  height:100%;
+}
 
-    canvas{
-      width:100%;
-      height:100%;
-      display:block;
-      background:transparent;
-      image-rendering:pixelated;
-      touch-action:none;
-      pointer-events:none;
-    }
+#phone{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  z-index:1;
+  pointer-events:none;
+}
 
-    #bootScreen{
-      position:absolute;
-      inset:0;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      background:transparent;
-      z-index:5;
-      animation:savyBoot 1s steps(2,end) forwards;
-      pointer-events:none;
-    }
+#game{
+  position:absolute;
+  left:14.3%;
+  top:28.5%;
+  width:71.4%;
+  height:22.9%;
+  z-index:2;
+  background:transparent;
+  pointer-events:none;
+}
 
-    #bootLogo{
-      width:50%;
-      height:auto;
-      display:none;
-      filter:brightness(0);
-    }
-
-    #bootFallback{
-      font-family:"SavyGameFont", Arial Black, Arial, sans-serif;
-      font-size:58px;
-      font-weight:900;
-      letter-spacing:2px;
-      color:#000;
-      display:block;
-      text-transform:uppercase;
-    }
-
-    #hitLayer{
-      position:absolute;
-      inset:0;
-      overflow:visible;
-      pointer-events:none;
-      z-index:9999;
-    }
-
-    .hitZone{
-      position:absolute;
-      background:rgba(255,0,0,.55);
-      border:2px solid red;
-      border-radius:999px;
-      pointer-events:auto;
-      cursor:pointer;
-      box-sizing:border-box;
-    }
-
-    @keyframes savyBoot{
-      0%{opacity:0;}
-      20%{opacity:1;}
-      70%{opacity:1;}
-      85%{opacity:.35;}
-      100%{opacity:0; visibility:hidden;}
-    }
-  </style>
+.zone{
+  position:absolute;
+  z-index:5;
+  background:rgba(255,0,0,.45);
+  border:1px solid red;
+  border-radius:999px;
+  cursor:pointer;
+}
+</style>
 </head>
 
 <body>
 
-<div id="stage">
-  <div id="savySnakeModule">
-    <div class="gameBox">
-      <canvas id="game"></canvas>
+<div id="phoneWrap">
+  <img id="phone" src="./SAV1.png" alt="SAVY PHONE">
+  <canvas id="game"></canvas>
 
-      <div id="bootScreen">
-        <img id="bootLogo" alt="SAVY">
-        <div id="bootFallback">SAVY</div>
-      </div>
+  <div class="zone" data-action="pause"   style="left:15%; top:54%; width:17%; height:7%;"></div>
+  <div class="zone" data-action="up"      style="left:41%; top:68%; width:18%; height:7%;"></div>
+  <div class="zone" data-action="sound"   style="left:66%; top:68%; width:19%; height:7%;"></div>
 
-      <div id="hitLayer">
-        <div class="hitZone" data-action="pause"   style="left:-20%; top:125%; width:26%; height:22%;"></div>
-        <div class="hitZone" data-action="up"      style="left:39%; top:153%; width:24%; height:20%;"></div>
-        <div class="hitZone" data-action="sound"   style="left:94%; top:153%; width:26%; height:20%;"></div>
+  <div class="zone" data-action="left"    style="left:16%; top:76%; width:19%; height:7%;"></div>
+  <div class="zone" data-action="restart" style="left:39%; top:76%; width:22%; height:7%;"></div>
+  <div class="zone" data-action="right"   style="left:65%; top:76%; width:19%; height:7%;"></div>
 
-        <div class="hitZone" data-action="left"    style="left:-13%; top:181%; width:26%; height:20%;"></div>
-        <div class="hitZone" data-action="restart" style="left:35%; top:181%; width:30%; height:20%;"></div>
-        <div class="hitZone" data-action="right"   style="left:88%; top:181%; width:26%; height:20%;"></div>
-
-        <div class="hitZone" data-action="down"    style="left:39%; top:210%; width:24%; height:20%;"></div>
-      </div>
-    </div>
-  </div>
+  <div class="zone" data-action="down"    style="left:41%; top:84%; width:18%; height:7%;"></div>
 </div>
 
 <script>
@@ -137,42 +86,13 @@
   const SPEEDUP_EVERY = 4;
   const SPEEDUP_MS = 4;
 
-  const BOOT_LOGO_URL = "./savy-logo.svg";
-
-  const EAT_SFX_SRC = "./eat.mp3";
-  const START_SFX_SRC = "./START.mp3";
-  const LOSE_SFX_SRC  = "./LOSE.mp3";
-
-  const eatSfx = new Audio(EAT_SFX_SRC);
-  const startSfx = new Audio(START_SFX_SRC);
-  const loseSfx  = new Audio(LOSE_SFX_SRC);
-
-  [eatSfx,startSfx,loseSfx].forEach(a => {
-    a.preload = "auto";
-    a.volume = 0.5;
-  });
-
-  let soundOn = true;
-  let audioArmed = false;
-
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d", { alpha:true });
 
-  const bootLogo = document.getElementById("bootLogo");
-  const bootFallback = document.getElementById("bootFallback");
-
-  if (BOOT_LOGO_URL){
-    bootLogo.src = BOOT_LOGO_URL;
-    bootLogo.onload = () => {
-      bootLogo.style.display = "block";
-      bootFallback.style.display = "none";
-    };
-  }
-
   let snake = [];
-  let dir = {x:1, y:0};
-  let nextDir = {x:1, y:0};
-  let food = {x:10, y:10};
+  let dir = {x:1,y:0};
+  let nextDir = {x:1,y:0};
+  let food = {x:10,y:10};
   let score = 0;
 
   let tickMs = START_MS;
@@ -182,53 +102,16 @@
   let paused = false;
   let dead = false;
   let booting = true;
+  let soundOn = true;
 
-  function armAudioOnce(){
-    if (audioArmed) return;
-    audioArmed = true;
-
-    try {
-      eatSfx.muted = true;
-      const p = eatSfx.play();
-
-      if (p && typeof p.then === "function") {
-        p.then(() => {
-          eatSfx.pause();
-          eatSfx.currentTime = 0;
-          eatSfx.muted = false;
-        }).catch(() => {
-          eatSfx.muted = false;
-        });
-      }
-    } catch(e) {}
-  }
-
-  function playSfx(a){
-    if (!soundOn) return;
-    try{
-      a.currentTime = 0;
-      const p = a.play();
-      if (p && typeof p.catch === "function") p.catch(() => {});
-    } catch(e) {}
-  }
-
-  function resizeCanvasToBox(){
-    const boxEl = canvas.parentElement;
-    const cssW = boxEl.clientWidth;
-    const cssH = boxEl.clientHeight;
+  function resize(){
     const dpr = window.devicePixelRatio || 1;
-
-    const px = Math.max(2, Math.floor(cssW * dpr * 2));
-    const py = Math.max(2, Math.floor(cssH * dpr * 2));
-
-    if (canvas.width !== px || canvas.height !== py){
-      canvas.width = px;
-      canvas.height = py;
-      ctx.imageSmoothingEnabled = false;
-    }
+    canvas.width = Math.floor(canvas.clientWidth * dpr * 2);
+    canvas.height = Math.floor(canvas.clientHeight * dpr * 2);
+    ctx.imageSmoothingEnabled = false;
   }
 
-  window.addEventListener("resize", resizeCanvasToBox);
+  window.addEventListener("resize", resize);
 
   function reset(){
     score = 0;
@@ -236,37 +119,35 @@
     dead = false;
     paused = false;
     running = true;
-    lastTime = 0;
     acc = 0;
+    lastTime = 0;
 
     const midX = Math.floor(COLS / 2);
     const midY = Math.floor(ROWS / 2);
 
     snake = [
-      {x:midX, y:midY},
-      {x:midX - 1, y:midY},
-      {x:midX - 2, y:midY},
-      {x:midX - 3, y:midY},
+      {x:midX,y:midY},
+      {x:midX-1,y:midY},
+      {x:midX-2,y:midY},
+      {x:midX-3,y:midY}
     ];
 
-    dir = {x:1, y:0};
-    nextDir = {x:1, y:0};
+    dir = {x:1,y:0};
+    nextDir = {x:1,y:0};
     food = spawnFood();
-
-    playSfx(startSfx);
   }
 
   function spawnFood(){
-    for (let i = 0; i < 1200; i++){
-      const x = Math.floor(Math.random() * COLS);
-      const y = Math.floor(Math.random() * ROWS);
-      if (!snake.some(s => s.x === x && s.y === y)) return {x,y};
+    for(let i=0;i<1200;i++){
+      const x = Math.floor(Math.random()*COLS);
+      const y = Math.floor(Math.random()*ROWS);
+      if(!snake.some(s => s.x===x && s.y===y)) return {x,y};
     }
-    return {x:0, y:0};
+    return {x:0,y:0};
   }
 
   function step(){
-    if (dead || paused || booting) return;
+    if(dead || paused || booting) return;
 
     dir = nextDir;
 
@@ -274,40 +155,38 @@
     const nx = head.x + dir.x;
     const ny = head.y + dir.y;
 
-    if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS){
+    if(nx<0 || ny<0 || nx>=COLS || ny>=ROWS){
       dead = true;
       running = false;
-      playSfx(loseSfx);
       return;
     }
 
-    if (snake.some((s, idx) => idx !== 0 && s.x === nx && s.y === ny)){
+    if(snake.some((s,i) => i!==0 && s.x===nx && s.y===ny)){
       dead = true;
       running = false;
-      playSfx(loseSfx);
       return;
     }
 
-    snake.unshift({x:nx, y:ny});
+    snake.unshift({x:nx,y:ny});
 
-    if (nx === food.x && ny === food.y){
-      score += 1;
-      playSfx(eatSfx);
-
-      if (score % SPEEDUP_EVERY === 0){
+    if(nx===food.x && ny===food.y){
+      score++;
+      if(score % SPEEDUP_EVERY === 0){
         tickMs = Math.max(MIN_MS, tickMs - SPEEDUP_MS);
       }
-
       food = spawnFood();
     } else {
       snake.pop();
     }
   }
 
+  function gameFont(size){
+    return `${size}px "SavyGameFont", Arial Black, Arial, sans-serif`;
+  }
+
   function draw(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
-
-    if (booting) return;
+    if(booting) return;
 
     const marginX = canvas.width * 0.035;
     const marginY = canvas.height * 0.055;
@@ -322,77 +201,56 @@
     ctx.translate(marginX, marginY);
 
     ctx.strokeStyle = "#000";
-    ctx.lineWidth = Math.max(8, Math.min(cellW, cellH) * 0.22);
-    ctx.strokeRect(0, 0, playW, playH);
+    ctx.lineWidth = Math.max(8, Math.min(cellW,cellH) * 0.22);
+    ctx.strokeRect(0,0,playW,playH);
 
     ctx.fillStyle = "#000";
 
-    for (let i = 0; i < snake.length; i++){
-      const s = snake[i];
-
+    for(const s of snake){
       ctx.fillRect(
-        s.x * cellW + cellW * 0.08,
-        s.y * cellH + cellH * 0.08,
-        cellW * 0.84,
-        cellH * 0.84
+        s.x*cellW + cellW*0.08,
+        s.y*cellH + cellH*0.08,
+        cellW*0.84,
+        cellH*0.84
       );
     }
 
     ctx.fillRect(
-      food.x * cellW + cellW * 0.25,
-      food.y * cellH + cellH * 0.25,
-      cellW * 0.5,
-      cellH * 0.5
+      food.x*cellW + cellW*0.25,
+      food.y*cellH + cellH*0.25,
+      cellW*0.5,
+      cellH*0.5
     );
 
     ctx.restore();
 
-    if (paused && !dead) drawCentreText("PAUSED", 0);
-    if (dead) drawGameOver();
+    if(paused && !dead) drawText("PAUSED", .5, .5, .10);
+
+    if(dead){
+      drawText("GAME OVER", .5, .42, .105);
+      drawText(`SCORE: ${String(score).padStart(2,"0")}`, .5, .55, .065);
+      drawText("PRESS RESTART", .5, .68, .04);
+    }
   }
 
-  function gameFont(size){
-    return `${size}px "SavyGameFont", Arial Black, Arial, sans-serif`;
-  }
-
-  function drawCentreText(text, offsetY){
+  function drawText(text,x,y,size){
     ctx.save();
     ctx.fillStyle = "#000";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = gameFont(Math.floor(canvas.width * 0.06));
-    ctx.fillText(String(text).toUpperCase(), canvas.width / 2, canvas.height / 2 + offsetY);
-    ctx.restore();
-  }
-
-  function drawGameOver(){
-    ctx.save();
-
-    ctx.fillStyle = "#000";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-
-    ctx.font = gameFont(Math.floor(canvas.width * 0.052));
-    ctx.fillText("GAME OVER", canvas.width / 2, canvas.height * 0.42);
-
-    ctx.font = gameFont(Math.floor(canvas.width * 0.032));
-    ctx.fillText(`SCORE: ${String(score).padStart(2, "0")}`, canvas.width / 2, canvas.height * 0.52);
-
-    ctx.font = gameFont(Math.floor(canvas.width * 0.022));
-    ctx.fillText("PRESS RESTART", canvas.width / 2, canvas.height * 0.62);
-
+    ctx.font = gameFont(Math.floor(canvas.width * size));
+    ctx.fillText(String(text).toUpperCase(), canvas.width*x, canvas.height*y);
     ctx.restore();
   }
 
   function loop(t){
-    if (!lastTime) lastTime = t;
-
+    if(!lastTime) lastTime = t;
     const dt = t - lastTime;
     lastTime = t;
 
-    if (running && !dead && !paused){
+    if(running && !dead && !paused){
       acc += dt;
-      while (acc >= tickMs){
+      while(acc >= tickMs){
         step();
         acc -= tickMs;
       }
@@ -402,29 +260,10 @@
     requestAnimationFrame(loop);
   }
 
-  function setDirection(dx, dy){
-    armAudioOnce();
-    if (dead || paused || booting) return;
-    if (dx === -dir.x && dy === -dir.y) return;
-    nextDir = {x:dx, y:dy};
-  }
-
-  function togglePause(){
-    armAudioOnce();
-    if (dead || booting) return;
-    paused = !paused;
-  }
-
-  function restartGame(){
-    armAudioOnce();
-    booting = false;
-    reset();
-  }
-
-  function toggleSound(){
-    armAudioOnce();
-    soundOn = !soundOn;
-    return soundOn;
+  function setDirection(dx,dy){
+    if(dead || paused || booting) return;
+    if(dx === -dir.x && dy === -dir.y) return;
+    nextDir = {x:dx,y:dy};
   }
 
   window.SavySnake = {
@@ -432,66 +271,48 @@
     down: () => setDirection(0,1),
     left: () => setDirection(-1,0),
     right: () => setDirection(1,0),
-    pause: () => togglePause(),
-    restart: () => restartGame(),
-    sound: () => toggleSound(),
-    getScore: () => score,
-    isSoundOn: () => soundOn
+    pause: () => {
+      if(dead || booting) return;
+      paused = !paused;
+    },
+    restart: () => {
+      booting = false;
+      reset();
+    },
+    sound: () => {
+      soundOn = !soundOn;
+      return soundOn;
+    }
   };
 
-  document.querySelectorAll(".hitZone").forEach(zone => {
-    zone.addEventListener("pointerdown", (e) => {
+  document.querySelectorAll(".zone").forEach(zone => {
+    zone.addEventListener("pointerdown", e => {
       e.preventDefault();
       e.stopPropagation();
-
       const action = zone.dataset.action;
-
-      if (action && window.SavySnake[action]){
-        window.SavySnake[action]();
-      }
+      if(window.SavySnake[action]) window.SavySnake[action]();
     });
   });
 
-  window.addEventListener("keydown", (e) => {
+  window.addEventListener("keydown", e => {
     const k = e.key.toLowerCase();
+    if(k==="arrowup" || k==="w") window.SavySnake.up();
+    else if(k==="arrowdown" || k==="s") window.SavySnake.down();
+    else if(k==="arrowleft" || k==="a") window.SavySnake.left();
+    else if(k==="arrowright" || k==="d") window.SavySnake.right();
+    else if(k===" ") window.SavySnake.pause();
+    else if(k==="r") window.SavySnake.restart();
+    else if(k==="m") window.SavySnake.sound();
+  });
 
-    if (["arrowup","arrowdown","arrowleft","arrowright"," ","r","m"].includes(k)){
-      e.preventDefault();
-      e.stopPropagation();
-    }
+  resize();
 
-    if (k === "arrowup" || k === "w") window.SavySnake.up();
-    else if (k === "arrowdown" || k === "s") window.SavySnake.down();
-    else if (k === "arrowleft" || k === "a") window.SavySnake.left();
-    else if (k === "arrowright" || k === "d") window.SavySnake.right();
-    else if (k === " ") window.SavySnake.pause();
-    else if (k === "r") window.SavySnake.restart();
-    else if (k === "m") window.SavySnake.sound();
-  }, { passive:false });
+  setTimeout(() => {
+    booting = false;
+    reset();
+  }, 1000);
 
-  async function init(){
-    resizeCanvasToBox();
-
-    try{
-      if (document.fonts && document.fonts.load){
-        await document.fonts.load('900 32px "SavyGameFont"');
-      }
-    } catch(e){}
-
-    setTimeout(() => {
-      booting = false;
-      reset();
-    }, 1000);
-
-    requestAnimationFrame(resizeCanvasToBox);
-    requestAnimationFrame(loop);
-  }
-
-  if (document.readyState === "loading"){
-    window.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
+  requestAnimationFrame(loop);
 })();
 </script>
 
