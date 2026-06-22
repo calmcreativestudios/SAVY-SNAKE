@@ -6,6 +6,13 @@
   <title>Savy Snake Module</title>
 
   <style>
+    @font-face{
+      font-family:"SavyGameFont";
+      src:url("./SFTSchriftedRoundTRIAL-CompBlackIt.ttf") format("truetype");
+      font-weight:900;
+      font-style:italic;
+    }
+
     html,body{
       margin:0;
       padding:0;
@@ -13,25 +20,11 @@
       height:100%;
       background:transparent;
       overflow:hidden;
-      font-family:Arial, Helvetica, sans-serif;
+      font-family:"SavyGameFont", Arial, Helvetica, sans-serif;
     }
 
-    #stage{
-      width:100%;
-      height:100%;
-      position:relative;
-      background:transparent;
-      overflow:hidden;
-    }
-
-    #savySnakeModule{
-      width:100%;
-      height:100%;
-      position:relative;
-      background:transparent;
-      overflow:hidden;
-    }
-
+    #stage,
+    #savySnakeModule,
     .gameBox{
       width:100%;
       height:100%;
@@ -63,18 +56,20 @@
     }
 
     #bootLogo{
-      width:45%;
+      width:50%;
       height:auto;
       display:none;
       filter:brightness(0);
     }
 
     #bootFallback{
+      font-family:"SavyGameFont", Arial Black, Arial, sans-serif;
       font-size:58px;
       font-weight:900;
       letter-spacing:2px;
       color:#000;
       display:block;
+      text-transform:uppercase;
     }
 
     @keyframes savyBoot{
@@ -89,28 +84,31 @@
 
 <body>
 
-  <div id="stage">
-    <div id="savySnakeModule">
-      <div class="gameBox">
-        <canvas id="game"></canvas>
+<div id="stage">
+  <div id="savySnakeModule">
+    <div class="gameBox">
+      <canvas id="game"></canvas>
 
-        <div id="bootScreen">
-          <img id="bootLogo" alt="SAVY">
-          <div id="bootFallback">SAVY</div>
-        </div>
+      <div id="bootScreen">
+        <img id="bootLogo" alt="SAVY">
+        <div id="bootFallback">SAVY</div>
       </div>
     </div>
   </div>
+</div>
 
 <script>
 (() => {
-  const GRID = 28;
+  const COLS = 34;
+  const ROWS = 28;
+
   const START_MS = 90;
   const MIN_MS = 55;
   const SPEEDUP_EVERY = 4;
   const SPEEDUP_MS = 4;
 
-  const BOOT_LOGO_URL = "";
+  const BOOT_LOGO_URL = "./savy-logo.svg";
+
   const EAT_SFX_SRC = "./eat.mp3";
   const START_SFX_SRC = "./START.mp3";
   const LOSE_SFX_SRC  = "./LOSE.mp3";
@@ -202,10 +200,6 @@
 
   window.addEventListener("resize", resizeCanvasToBox);
 
-  function cellSize(){
-    return Math.floor(Math.min(canvas.width, canvas.height) / GRID);
-  }
-
   function reset(){
     score = 0;
     tickMs = START_MS;
@@ -215,13 +209,14 @@
     lastTime = 0;
     acc = 0;
 
-    const mid = Math.floor(GRID / 2);
+    const midX = Math.floor(COLS / 2);
+    const midY = Math.floor(ROWS / 2);
 
     snake = [
-      {x:mid, y:mid},
-      {x:mid - 1, y:mid},
-      {x:mid - 2, y:mid},
-      {x:mid - 3, y:mid},
+      {x:midX, y:midY},
+      {x:midX - 1, y:midY},
+      {x:midX - 2, y:midY},
+      {x:midX - 3, y:midY},
     ];
 
     dir = {x:1, y:0};
@@ -233,8 +228,8 @@
 
   function spawnFood(){
     for (let i = 0; i < 1200; i++){
-      const x = Math.floor(Math.random() * GRID);
-      const y = Math.floor(Math.random() * GRID);
+      const x = Math.floor(Math.random() * COLS);
+      const y = Math.floor(Math.random() * ROWS);
       if (!snake.some(s => s.x === x && s.y === y)) return {x,y};
     }
     return {x:0, y:0};
@@ -249,7 +244,7 @@
     const nx = head.x + dir.x;
     const ny = head.y + dir.y;
 
-    if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID){
+    if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS){
       dead = true;
       running = false;
       playSfx(loseSfx);
@@ -284,47 +279,59 @@
 
     if (booting) return;
 
-    const cs = cellSize();
-    const playW = cs * GRID;
-    const playH = cs * GRID;
+    const marginX = canvas.width * 0.035;
+    const marginY = canvas.height * 0.055;
 
-    const ox = Math.floor((canvas.width - playW) / 2);
-    const oy = Math.floor((canvas.height - playH) / 2);
+    const playW = canvas.width - marginX * 2;
+    const playH = canvas.height - marginY * 2;
+
+    const cellW = playW / COLS;
+    const cellH = playH / ROWS;
 
     ctx.save();
-    ctx.translate(ox, oy);
+    ctx.translate(marginX, marginY);
 
     ctx.strokeStyle = "#000";
-    ctx.lineWidth = Math.max(8, cs * 0.22);
+    ctx.lineWidth = Math.max(8, Math.min(cellW, cellH) * 0.22);
 
     ctx.strokeRect(
-      cs * 0.1,
-      cs * 0.1,
-      playW - (cs * 0.2),
-      playH - (cs * 0.2)
+      0,
+      0,
+      playW,
+      playH
     );
 
     ctx.fillStyle = "#000";
 
     for (let i = 0; i < snake.length; i++){
       const s = snake[i];
-      ctx.fillRect(s.x * cs + 1, s.y * cs + 1, cs - 2, cs - 2);
+
+      ctx.fillRect(
+        s.x * cellW + cellW * 0.08,
+        s.y * cellH + cellH * 0.08,
+        cellW * 0.84,
+        cellH * 0.84
+      );
     }
 
-    const fx = food.x * cs;
-    const fy = food.y * cs;
+    const fx = food.x * cellW;
+    const fy = food.y * cellH;
 
-    ctx.fillRect(fx + cs * 0.25, fy + cs * 0.25, cs * 0.5, cs * 0.5);
+    ctx.fillRect(
+      fx + cellW * 0.25,
+      fy + cellH * 0.25,
+      cellW * 0.5,
+      cellH * 0.5
+    );
 
     ctx.restore();
 
-    if (paused && !dead){
-      drawCentreText("PAUSED", 0);
-    }
+    if (paused && !dead) drawCentreText("PAUSED", 0);
+    if (dead) drawGameOver();
+  }
 
-    if (dead){
-      drawGameOver();
-    }
+  function gameFont(size){
+    return `${size}px "SavyGameFont", Arial Black, Arial, sans-serif`;
   }
 
   function drawCentreText(text, offsetY){
@@ -332,8 +339,8 @@
     ctx.fillStyle = "#000";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = `${Math.floor(canvas.width * 0.065)}px Arial Black, Arial, sans-serif`;
-    ctx.fillText(text, canvas.width / 2, canvas.height / 2 + offsetY);
+    ctx.font = gameFont(Math.floor(canvas.width * 0.06));
+    ctx.fillText(String(text).toUpperCase(), canvas.width / 2, canvas.height / 2 + offsetY);
     ctx.restore();
   }
 
@@ -344,13 +351,13 @@
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    ctx.font = `${Math.floor(canvas.width * 0.06)}px Arial Black, Arial, sans-serif`;
+    ctx.font = gameFont(Math.floor(canvas.width * 0.052));
     ctx.fillText("GAME OVER", canvas.width / 2, canvas.height * 0.42);
 
-    ctx.font = `${Math.floor(canvas.width * 0.04)}px Arial Black, Arial, sans-serif`;
+    ctx.font = gameFont(Math.floor(canvas.width * 0.032));
     ctx.fillText(`SCORE: ${String(score).padStart(2, "0")}`, canvas.width / 2, canvas.height * 0.52);
 
-    ctx.font = `${Math.floor(canvas.width * 0.027)}px Arial, sans-serif`;
+    ctx.font = gameFont(Math.floor(canvas.width * 0.022));
     ctx.fillText("PRESS RESTART", canvas.width / 2, canvas.height * 0.62);
 
     ctx.restore();
@@ -428,18 +435,21 @@
     else if (k === "m") window.SavySnake.sound();
   }, { passive:false });
 
-  function init(){
+  async function init(){
     resizeCanvasToBox();
+
+    try{
+      if (document.fonts && document.fonts.load){
+        await document.fonts.load('900 32px "SavyGameFont"');
+      }
+    } catch(e){}
 
     setTimeout(() => {
       booting = false;
       reset();
     }, 1000);
 
-    requestAnimationFrame(() => {
-      resizeCanvasToBox();
-    });
-
+    requestAnimationFrame(resizeCanvasToBox);
     requestAnimationFrame(loop);
   }
 
