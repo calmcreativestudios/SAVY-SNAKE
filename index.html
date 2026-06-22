@@ -6,13 +6,6 @@
   <title>Savy Snake Module</title>
 
   <style>
-    :root{
-      --bg: transparent;
-      --ink:#000000;
-      --screen:#79965E;
-      --gameSize:900px;
-    }
-
     html,body{
       margin:0;
       padding:0;
@@ -20,31 +13,30 @@
       height:100%;
       background:transparent;
       overflow:hidden;
-      overscroll-behavior:none;
       font-family:Arial, Helvetica, sans-serif;
     }
 
     #stage{
-      position:fixed;
-      left:0;
-      top:0;
-      transform-origin:0 0;
-      will-change:transform;
+      width:100%;
+      height:100%;
+      position:relative;
+      background:transparent;
+      overflow:hidden;
     }
 
     #savySnakeModule{
-      width:var(--gameSize);
-      height:var(--gameSize);
+      width:100%;
+      height:100%;
       position:relative;
       background:transparent;
+      overflow:hidden;
     }
 
     .gameBox{
-      width:var(--gameSize);
-      height:var(--gameSize);
-      background:transparent;
-      box-sizing:border-box;
+      width:100%;
+      height:100%;
       position:relative;
+      background:transparent;
       overflow:hidden;
     }
 
@@ -70,19 +62,19 @@
       pointer-events:none;
     }
 
-    #bootScreen img{
+    #bootLogo{
       width:45%;
       height:auto;
-      display:block;
+      display:none;
       filter:brightness(0);
     }
 
     #bootFallback{
-      font-size:72px;
+      font-size:58px;
       font-weight:900;
       letter-spacing:2px;
       color:#000;
-      display:none;
+      display:block;
     }
 
     @keyframes savyBoot{
@@ -99,11 +91,11 @@
 
   <div id="stage">
     <div id="savySnakeModule">
-      <div class="gameBox" aria-label="Savy Snake game">
-        <canvas id="game" width="900" height="900"></canvas>
+      <div class="gameBox">
+        <canvas id="game"></canvas>
 
         <div id="bootScreen">
-          <img src="./savy-logo.svg" alt="SAVY" onerror="this.style.display='none';document.getElementById('bootFallback').style.display='block';">
+          <img id="bootLogo" alt="SAVY">
           <div id="bootFallback">SAVY</div>
         </div>
       </div>
@@ -118,8 +110,7 @@
   const SPEEDUP_EVERY = 4;
   const SPEEDUP_MS = 4;
 
-  const LOGO_SRC = "./savy-logo.svg";
-
+  const BOOT_LOGO_URL = "";
   const EAT_SFX_SRC = "./eat.mp3";
   const START_SFX_SRC = "./START.mp3";
   const LOSE_SFX_SRC  = "./LOSE.mp3";
@@ -135,6 +126,34 @@
 
   let soundOn = true;
   let audioArmed = false;
+
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d", { alpha:true });
+
+  const bootLogo = document.getElementById("bootLogo");
+  const bootFallback = document.getElementById("bootFallback");
+
+  if (BOOT_LOGO_URL){
+    bootLogo.src = BOOT_LOGO_URL;
+    bootLogo.onload = () => {
+      bootLogo.style.display = "block";
+      bootFallback.style.display = "none";
+    };
+  }
+
+  let snake = [];
+  let dir = {x:1, y:0};
+  let nextDir = {x:1, y:0};
+  let food = {x:10, y:10};
+  let score = 0;
+
+  let tickMs = START_MS;
+  let lastTime = 0;
+  let acc = 0;
+  let running = false;
+  let paused = false;
+  let dead = false;
+  let booting = true;
 
   function armAudioOnce(){
     if (audioArmed) return;
@@ -165,55 +184,14 @@
     } catch(e) {}
   }
 
-  const canvas = document.getElementById("game");
-  const ctx = canvas.getContext("2d", { alpha:true });
-
-  let snake = [];
-  let dir = {x:1, y:0};
-  let nextDir = {x:1, y:0};
-  let food = {x:10, y:10};
-  let score = 0;
-
-  let tickMs = START_MS;
-  let lastTime = 0;
-  let acc = 0;
-  let running = false;
-  let paused = false;
-  let dead = false;
-  let booting = true;
-
-  setTimeout(() => {
-    booting = false;
-    reset();
-  }, 1000);
-
-  function fitStage(){
-    const stage = document.getElementById("stage");
-    const module = document.getElementById("savySnakeModule");
-
-    const baseW = module.offsetWidth;
-    const baseH = module.offsetHeight;
-
-    stage.style.width = baseW + "px";
-    stage.style.height = baseH + "px";
-
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const scale = Math.min(vw / baseW, vh / baseH);
-
-    stage.style.transform = `scale(${scale})`;
-    stage.style.left = Math.floor((vw - baseW * scale) / 2) + "px";
-    stage.style.top  = Math.floor((vh - baseH * scale) / 2) + "px";
-  }
-
   function resizeCanvasToBox(){
     const boxEl = canvas.parentElement;
     const cssW = boxEl.clientWidth;
     const cssH = boxEl.clientHeight;
-
     const dpr = window.devicePixelRatio || 1;
-    const px = Math.floor(cssW * dpr * 2);
-    const py = Math.floor(cssH * dpr * 2);
+
+    const px = Math.max(2, Math.floor(cssW * dpr * 2));
+    const py = Math.max(2, Math.floor(cssH * dpr * 2));
 
     if (canvas.width !== px || canvas.height !== py){
       canvas.width = px;
@@ -222,10 +200,7 @@
     }
   }
 
-  window.addEventListener("resize", () => {
-    fitStage();
-    resizeCanvasToBox();
-  });
+  window.addEventListener("resize", resizeCanvasToBox);
 
   function cellSize(){
     return Math.floor(Math.min(canvas.width, canvas.height) / GRID);
@@ -310,8 +285,11 @@
     if (booting) return;
 
     const cs = cellSize();
-    const ox = Math.floor((canvas.width - cs * GRID) / 2);
-    const oy = Math.floor((canvas.height - cs * GRID) / 2);
+    const playW = cs * GRID;
+    const playH = cs * GRID;
+
+    const ox = Math.floor((canvas.width - playW) / 2);
+    const oy = Math.floor((canvas.height - playH) / 2);
 
     ctx.save();
     ctx.translate(ox, oy);
@@ -322,8 +300,8 @@
     ctx.strokeRect(
       cs * 0.1,
       cs * 0.1,
-      cs * GRID - (cs * 0.2),
-      cs * GRID - (cs * 0.2)
+      playW - (cs * 0.2),
+      playH - (cs * 0.2)
     );
 
     ctx.fillStyle = "#000";
@@ -336,7 +314,6 @@
     const fx = food.x * cs;
     const fy = food.y * cs;
 
-    ctx.fillStyle = "#000";
     ctx.fillRect(fx + cs * 0.25, fy + cs * 0.25, cs * 0.5, cs * 0.5);
 
     ctx.restore();
@@ -452,11 +429,14 @@
   }, { passive:false });
 
   function init(){
-    fitStage();
     resizeCanvasToBox();
 
+    setTimeout(() => {
+      booting = false;
+      reset();
+    }, 1000);
+
     requestAnimationFrame(() => {
-      fitStage();
       resizeCanvasToBox();
     });
 
