@@ -39,11 +39,36 @@ html,body{
   pointer-events:none;
 }
 
+#bootScreen{
+  position:absolute;
+  left:16.23%;
+  top:26.62%;
+  width:66.78%;
+  height:20.46%;
+  z-index:4;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  pointer-events:none;
+  opacity:0;
+}
+
+#bootLogo{
+  width:58%;
+  height:auto;
+  display:block;
+  filter:brightness(0);
+}
+
+#bootScreen.play{
+  animation:savyBoot 1s steps(2,end) forwards;
+}
+
 .zone{
   position:absolute;
   z-index:5;
-  background:rgba(255,0,0,.45);
-  border:1px solid red;
+  background:transparent;
+  border:none;
   box-sizing:border-box;
   cursor:pointer;
 }
@@ -62,6 +87,14 @@ html,body{
     42% 70%
   );
 }
+
+@keyframes savyBoot{
+  0%{opacity:0;}
+  20%{opacity:1;}
+  70%{opacity:1;}
+  85%{opacity:.35;}
+  100%{opacity:0; visibility:hidden;}
+}
 </style>
 </head>
 
@@ -69,6 +102,10 @@ html,body{
 
 <div id="phoneWrap">
   <canvas id="game"></canvas>
+
+  <div id="bootScreen">
+    <img id="bootLogo" src="./SAVYLOGO.svg" alt="SAVY">
+  </div>
 
   <div class="zone pause" data-action="pause"
     style="left:15.39%; top:58.50%; width:19.39%; height:8.61%;"></div>
@@ -102,8 +139,27 @@ html,body{
   const SPEEDUP_EVERY = 4;
   const SPEEDUP_MS = 4;
 
+  const EAT_SFX_SRC = "./eat.mp3";
+  const START_SFX_SRC = "./START.mp3";
+  const LOSE_SFX_SRC = "./LOSE.mp3";
+  const BUTTON_SFX_SRC = "./button-click.mp3";
+
+  const eatSfx = new Audio(EAT_SFX_SRC);
+  const startSfx = new Audio(START_SFX_SRC);
+  const loseSfx = new Audio(LOSE_SFX_SRC);
+  const buttonSfx = new Audio(BUTTON_SFX_SRC);
+
+  [eatSfx,startSfx,loseSfx,buttonSfx].forEach(a => {
+    a.preload = "auto";
+    a.volume = 0.5;
+  });
+
+  let soundOn = true;
+  let audioArmed = false;
+
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d", { alpha:true });
+  const bootScreen = document.getElementById("bootScreen");
 
   let snake = [];
   let dir = {x:1,y:0};
@@ -118,7 +174,35 @@ html,body{
   let paused = false;
   let dead = false;
   let booting = true;
-  let soundOn = true;
+
+  function armAudioOnce(){
+    if(audioArmed) return;
+    audioArmed = true;
+
+    try{
+      buttonSfx.muted = true;
+      const p = buttonSfx.play();
+
+      if(p && typeof p.then === "function"){
+        p.then(() => {
+          buttonSfx.pause();
+          buttonSfx.currentTime = 0;
+          buttonSfx.muted = false;
+        }).catch(() => {
+          buttonSfx.muted = false;
+        });
+      }
+    }catch(e){}
+  }
+
+  function playSfx(a){
+    if(!soundOn) return;
+    try{
+      a.currentTime = 0;
+      const p = a.play();
+      if(p && typeof p.catch === "function") p.catch(() => {});
+    }catch(e){}
+  }
 
   function resize(){
     const dpr = window.devicePixelRatio || 1;
@@ -128,6 +212,22 @@ html,body{
   }
 
   window.addEventListener("resize", resize);
+
+  function showBootThenStart(){
+    booting = true;
+    running = false;
+    paused = false;
+    dead = false;
+
+    bootScreen.classList.remove("play");
+    void bootScreen.offsetWidth;
+    bootScreen.classList.add("play");
+
+    setTimeout(() => {
+      booting = false;
+      reset();
+    }, 1000);
+  }
 
   function reset(){
     score = 0;
@@ -151,6 +251,8 @@ html,body{
     dir = {x:1,y:0};
     nextDir = {x:1,y:0};
     food = spawnFood();
+
+    playSfx(startSfx);
   }
 
   function spawnFood(){
@@ -174,12 +276,14 @@ html,body{
     if(nx<0 || ny<0 || nx>=COLS || ny>=ROWS){
       dead = true;
       running = false;
+      playSfx(loseSfx);
       return;
     }
 
     if(snake.some((s,i) => i!==0 && s.x===nx && s.y===ny)){
       dead = true;
       running = false;
+      playSfx(loseSfx);
       return;
     }
 
@@ -187,9 +291,12 @@ html,body{
 
     if(nx===food.x && ny===food.y){
       score++;
+      playSfx(eatSfx);
+
       if(score % SPEEDUP_EVERY === 0){
         tickMs = Math.max(MIN_MS, tickMs - SPEEDUP_MS);
       }
+
       food = spawnFood();
     } else {
       snake.pop();
@@ -277,6 +384,7 @@ html,body{
   }
 
   function setDirection(dx,dy){
+    armAudioOnce();
     if(dead || paused || booting) return;
     if(dx === -dir.x && dy === -dir.y) return;
     nextDir = {x:dx,y:dy};
@@ -288,14 +396,16 @@ html,body{
     left: () => setDirection(-1,0),
     right: () => setDirection(1,0),
     pause: () => {
+      armAudioOnce();
       if(dead || booting) return;
       paused = !paused;
     },
     restart: () => {
-      booting = false;
-      reset();
+      armAudioOnce();
+      showBootThenStart();
     },
     sound: () => {
+      armAudioOnce();
       soundOn = !soundOn;
       return soundOn;
     }
@@ -305,18 +415,18 @@ html,body{
     zone.addEventListener("pointerdown", e => {
       e.preventDefault();
       e.stopPropagation();
+
       const action = zone.dataset.action;
+
+      armAudioOnce();
+      playSfx(buttonSfx);
+
       if(window.SavySnake[action]) window.SavySnake[action]();
     });
   });
 
   resize();
-
-  setTimeout(() => {
-    booting = false;
-    reset();
-  }, 1000);
-
+  showBootThenStart();
   requestAnimationFrame(loop);
 })();
 </script>
