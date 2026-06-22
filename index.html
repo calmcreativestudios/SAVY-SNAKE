@@ -62,22 +62,26 @@ html,body{
 <body>
 
 <div id="phoneWrap">
-  <img id="phone" src="./SAV1.png" alt="SAVY PHONE">
+  <img id="phone" alt="SAVY PHONE">
   <canvas id="game"></canvas>
 
-  <div class="zone" data-action="pause"   style="left:15%; top:54%; width:17%; height:7%;"></div>
-  <div class="zone" data-action="up"      style="left:41%; top:68%; width:18%; height:7%;"></div>
-  <div class="zone" data-action="sound"   style="left:66%; top:68%; width:19%; height:7%;"></div>
+  <div class="zone" data-action="pause"   style="left:15.3%; top:58.5%; width:19.5%; height:8.5%;"></div>
 
-  <div class="zone" data-action="left"    style="left:16%; top:76%; width:19%; height:7%;"></div>
-  <div class="zone" data-action="restart" style="left:39%; top:76%; width:22%; height:7%;"></div>
-  <div class="zone" data-action="right"   style="left:65%; top:76%; width:19%; height:7%;"></div>
+  <div class="zone" data-action="up"      style="left:38.1%; top:71.0%; width:23.2%; height:5.2%;"></div>
+  <div class="zone" data-action="sound"   style="left:68.8%; top:69.9%; width:22.6%; height:6.1%;"></div>
 
-  <div class="zone" data-action="down"    style="left:41%; top:84%; width:18%; height:7%;"></div>
+  <div class="zone" data-action="left"    style="left:11.4%; top:77.5%; width:21.3%; height:5.4%;"></div>
+  <div class="zone" data-action="restart" style="left:38.1%; top:78.6%; width:23.2%; height:5.2%;"></div>
+  <div class="zone" data-action="right"   style="left:67.4%; top:77.5%; width:21.3%; height:5.4%;"></div>
+
+  <div class="zone" data-action="down"    style="left:38.1%; top:86.2%; width:23.2%; height:5.2%;"></div>
 </div>
 
 <script>
 (() => {
+  const PHONE_SRC = "https://YOURUSERNAME.github.io/YOURREPO/SAV1.png";
+  document.getElementById("phone").src = PHONE_SRC;
+
   const COLS = 34;
   const ROWS = 28;
 
@@ -292,17 +296,6 @@ html,body{
       const action = zone.dataset.action;
       if(window.SavySnake[action]) window.SavySnake[action]();
     });
-  });
-
-  window.addEventListener("keydown", e => {
-    const k = e.key.toLowerCase();
-    if(k==="arrowup" || k==="w") window.SavySnake.up();
-    else if(k==="arrowdown" || k==="s") window.SavySnake.down();
-    else if(k==="arrowleft" || k==="a") window.SavySnake.left();
-    else if(k==="arrowright" || k==="d") window.SavySnake.right();
-    else if(k===" ") window.SavySnake.pause();
-    else if(k==="r") window.SavySnake.restart();
-    else if(k==="m") window.SavySnake.sound();
   });
 
   resize();
