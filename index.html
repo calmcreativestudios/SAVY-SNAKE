@@ -168,10 +168,6 @@
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d", { alpha:true });
 
-  const foodImg = new Image();
-  foodImg.decoding = "async";
-  foodImg.src = LOGO_SRC;
-
   let snake = [];
   let dir = {x:1, y:0};
   let nextDir = {x:1, y:0};
@@ -321,12 +317,13 @@
     ctx.translate(ox, oy);
 
     ctx.strokeStyle = "#000";
-    ctx.lineWidth = 2;
+    ctx.lineWidth = Math.max(8, cs * 0.22);
+
     ctx.strokeRect(
-      1,
-      1,
-      cs * GRID - 2,
-      cs * GRID - 2
+      cs * 0.1,
+      cs * 0.1,
+      cs * GRID - (cs * 0.2),
+      cs * GRID - (cs * 0.2)
     );
 
     ctx.fillStyle = "#000";
