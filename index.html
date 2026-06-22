@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Savy Snake Phone</title>
+<title>Savy Snake Control Overlay</title>
 
 <style>
 @font-face{
@@ -25,16 +25,7 @@ html,body{
   position:relative;
   width:100%;
   height:100%;
-}
-
-#phone{
-  position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
-  object-fit:contain;
-  z-index:1;
-  pointer-events:none;
+  background:transparent;
 }
 
 #game{
@@ -53,8 +44,8 @@ html,body{
   z-index:5;
   background:rgba(255,0,0,.45);
   border:1px solid red;
-  cursor:pointer;
   box-sizing:border-box;
+  cursor:pointer;
 }
 
 .zone.oval{
@@ -63,15 +54,12 @@ html,body{
 
 .zone.pause{
   clip-path:polygon(
-    0% 28%,
-    26% 0%,
-    38% 5%,
-    52% 18%,
-    70% 31%,
-    100% 44%,
-    83% 100%,
-    54% 76%,
-    28% 50%
+    0% 35%,
+    20% 0%,
+    52% 22%,
+    100% 42%,
+    84% 100%,
+    42% 70%
   );
 }
 </style>
@@ -80,36 +68,32 @@ html,body{
 <body>
 
 <div id="phoneWrap">
-  <img id="phone" alt="SAVY PHONE">
   <canvas id="game"></canvas>
 
   <div class="zone pause" data-action="pause"
-    style="left:15.37%; top:58.46%; width:19.77%; height:8.43%;"></div>
+    style="left:15.39%; top:58.50%; width:19.39%; height:8.61%;"></div>
 
   <div class="zone oval" data-action="up"
-    style="left:38.08%; top:70.97%; width:23.16%; height:5.15%;"></div>
+    style="left:38.09%; top:70.97%; width:23.16%; height:5.15%;"></div>
 
   <div class="zone oval" data-action="sound"
-    style="left:68.44%; top:69.90%; width:23.36%; height:6.78%; transform:rotate(-21.2deg);"></div>
+    style="left:68.84%; top:69.91%; width:21.30%; height:4.86%; transform:rotate(-21deg);"></div>
 
   <div class="zone oval" data-action="left"
-    style="left:11.27%; top:77.62%; width:21.29%; height:5.24%; transform:rotate(16.7deg);"></div>
+    style="left:11.40%; top:77.70%; width:22.10%; height:4.86%; transform:rotate(17deg);"></div>
 
   <div class="zone oval" data-action="restart"
-    style="left:38.08%; top:78.61%; width:23.16%; height:5.15%;"></div>
+    style="left:38.09%; top:78.63%; width:23.16%; height:5.15%;"></div>
 
   <div class="zone oval" data-action="right"
-    style="left:67.53%; top:77.62%; width:21.29%; height:5.24%; transform:rotate(-16.7deg);"></div>
+    style="left:67.54%; top:77.70%; width:22.10%; height:4.86%; transform:rotate(-17deg);"></div>
 
   <div class="zone oval" data-action="down"
-    style="left:38.08%; top:86.17%; width:23.16%; height:5.15%;"></div>
+    style="left:38.09%; top:86.18%; width:23.16%; height:5.15%;"></div>
 </div>
 
 <script>
 (() => {
-const PHONE_SRC = "https://calmcreativestudios.github.io/SAVY-SNAKE/SAV1.png";
-  document.getElementById("phone").src = PHONE_SRC;
-
   const COLS = 34;
   const ROWS = 28;
 
